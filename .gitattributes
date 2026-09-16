@@ -1,0 +1,8 @@
+# Preserve vendored licenses/assets verbatim; their upstream whitespace is not code.
+public/fonts/** -whitespace
+public/licenses/** -whitespace
+public/simulator/licenses/** -whitespace
+public/logo.svg -whitespace
+*.wasm binary
+*.woff2 binary
+*.ttf binary

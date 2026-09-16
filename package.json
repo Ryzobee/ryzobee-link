@@ -1,0 +1,34 @@
+{
+  "name": "ryzobee-link",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5180 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run typecheck && vite build && node scripts/build-offline.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4180 --strictPort",
+    "test:browser": "playwright test",
+    "build:simulator": "node scripts/build-simulator.mjs",
+    "test:simulator": "node simulator/test-browser.mjs",
+    "test:offline": "node scripts/test-offline.mjs"
+  },
+  "dependencies": {
+    "@vscode/codicons": "0.0.46-24",
+    "monaco-editor": "0.56.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "6.1.0",
+    "typescript": "~5.9.3",
+    "vite": "8.2.2",
+    "vitest": "4.1.11"
+  }
+}

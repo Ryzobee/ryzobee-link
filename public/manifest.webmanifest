@@ -1,0 +1,6 @@
+{
+  "name": "RYZOBEE LINK", "short_name": "Ryzobee Link",
+  "start_url": "./", "scope": "./", "display": "standalone",
+  "background_color": "#121212", "theme_color": "#121212",
+  "icons": [{ "src": "logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

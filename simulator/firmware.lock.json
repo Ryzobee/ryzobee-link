@@ -1,0 +1,30 @@
+{
+  "repository": "ryzobee-firmware",
+  "commit": "f5d149dbf76116a7a9ae9194c7c4e333448d3ace",
+  "sourceTreeSHA256": "3ef9a2676570d18d4def2efff953aa6346c43145d3b501d266bf3962f22301ab",
+  "sourcePaths": [
+    "dependencies.lock",
+    "sdkconfig.defaults",
+    "components/ryz_runtime",
+    "components/ryz_lvgl",
+    "components/ryz_font",
+    "components/ryz_system_ui/ryz_v5_font.c",
+    "components/ryz_system_ui/include",
+    "components/ryz_system_ui/ryz_v5_font_data.inc",
+    "components/ryz_system_ui/assets",
+    "components/ryz_board/display_font.h",
+    "components/ryz_board/include",
+    "components/ryz_tools/include",
+    "components/ryz_i2c_scan/include",
+    "components/ryz_rgb/include",
+    "components/ryz_monitor/include",
+    "host/pixels/platform.c",
+    "host/pixels/stubs",
+    "managed_components/lvgl__lvgl",
+    "managed_components/georgik__lua"
+  ],
+  "emscripten": "4.0.15",
+  "lua": "5.5.0",
+  "luaComponent": "georgik/lua@5.5.0~7",
+  "lvgl": "9.5.0"
+}
