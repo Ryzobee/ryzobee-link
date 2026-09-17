@@ -1,13 +1,24 @@
-# RYZOBEE LINK
+<p align="center">
+  <a href="https://wiki.ryzobee.com/zh/home"><img src="public/logo.svg" width="80" alt="Ryzobee logo"></a>
+</p>
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+<h1 align="center">RYZOBEE LINK</h1>
+<p align="center"><strong>Your browser. Your Lua. Your hardware.</strong></p>
+<p align="center">Edit · Simulate · Send · Inspect</p>
+<p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></p>
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="#screenshots">Screenshots</a> · <a href="#deploy-as-a-static-website">Deploy</a> · <a href="skills/ryzobee-lua/README.md#english">AI skill</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
+<p align="center"><a href="LICENSE">MIT licensed</a> · Static web app · Web Serial · Lua + LVGL + WebAssembly</p>
 
-A lightweight, browser-based Lua workbench for Ryzobee RootMaker: edit scripts, try interactive UI simulations, transfer files over USB serial, and inspect device logs—all in a static web application.
+A lightweight Lua workbench for **Ryzobee RootMaker**. Edit scripts, interact with a simulated screen, transfer files over USB serial, and inspect logs—without an application server or desktop installation.
+
+![RYZOBEE LINK running the interactive Lua counter with source code and simulator logs](docs/screenshots/workbench.png)
+
+<p align="center"><em>Live browser capture: the included counter after three clicks. No serial device connected.</em></p>
 
 ## Highlights
 
 - **No application server:** React, TypeScript and Vite; no account, AI API key or Electron runtime required.
-- **Multi-file Lua editor:** Monaco syntax highlighting, resizable filename tabs, local IndexedDB drafts, file import/export and keyboard shortcuts.
+- **Multi-file Lua editor:** Monaco syntax highlighting, adaptive filename tabs, local IndexedDB drafts, file import/export and keyboard shortcuts.
 - **Interactive UI simulator:** the pinned Ryzobee C/Lua/LVGL runtime compiled to WebAssembly, isolated in a Worker. Click the simulated display to interact.
 - **Web Serial device access:** browse, read, upload, run and delete supported device scripts, with automatic file/capacity updates.
 - **Direct device execution:** sending a script does not require simulation, approval tokens or a cloud service. SHA-256 checks transfer integrity, not permission.
@@ -33,6 +44,28 @@ Open **http://127.0.0.1:5180**. The development port is fixed; a busy port cause
 4. Click Send, review the destination and confirm. Run after sending is checked by default; uncheck it to upload only.
 
 Double-click a device file to read it into the editor; its `…` menu also supports download, run and delete. Overwrite and deletion require confirmation. Stop a running device script before device file reads/writes if required by the firmware.
+
+## Screenshots
+
+### Write with room to think
+
+Keep multiple Lua files open, switch between tabs, and start from the firmware-compatible metadata template. Drafts stay in this browser; export files when you want a backup.
+
+![Multiple file tabs and the new Lua script metadata template](docs/screenshots/editor.png)
+
+### Click the UI, not a playback timeline
+
+Run the current source, interact with the 240×240 screen and see Lua respond. This is the bundled Wasm UI runtime—not an ESP32 peripheral emulator.
+
+<p align="center"><img src="docs/screenshots/simulator.png" width="360" alt="Interactive simulator showing COUNT 3"></p>
+
+### Follow the output
+
+Switch between device, simulator and Link logs, filter by level, or pause scrolling while inspecting a message.
+
+![Simulator output showing the three verified counter clicks](docs/screenshots/logs.png)
+
+These captures use the actual application and its bundled demo, without mocked serial data. The interface is currently Chinese; device access is intended for desktop Chrome / Edge. See [capture notes](docs/screenshots/README.md).
 
 ## Deploy as a static website
 
