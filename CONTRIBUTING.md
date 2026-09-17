@@ -48,9 +48,9 @@ Examples / 示例：
 📝 docs(deploy): document HTTPS static hosting
 ```
 
-PR titles follow the same format. Squash merging uses the PR title as the final commit title; only squash merging is enabled. The format is currently checked by contributors/reviewers, not an automated CI workflow. Existing historical commits are not rewritten.
+PR titles follow the same format. The required `PR checks` workflow validates the title and builds the application (including type checking). Squash merging uses the PR title as the final commit title; only squash merging is enabled. Temporary feature-branch commits should also follow the convention, but are not individually checked by this workflow. Existing historical commits are not rewritten.
 
-PR 标题同样遵守规范。合并仅使用 squash，最终提交标题取自 PR 标题。当前通过贡献者和审阅者检查格式，未配置自动 CI 格式校验；旧历史不改写。
+PR 标题同样遵守规范。必需的 `PR checks` 工作流检查标题格式并构建应用（包含类型检查）。合并仅使用 squash，最终提交标题取自 PR 标题。功能分支中的临时提交也应遵守规范，但该工作流不逐条检查；旧历史不改写。
 
 ## Verification / 验证
 
