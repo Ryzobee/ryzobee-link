@@ -6,7 +6,7 @@ import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import { createLuaEditorTheme } from './luaEditorTheme';
 
 self.MonacoEnvironment = { getWorker: () => new EditorWorker() };
-export type SourceError = { line: number; message: string; source: string };
+export type SourceError = { line: number; message: string; source: string; limitation?: boolean; diagnostic?: string };
 const methods: Record<string, string[]> = {
   ui: ['mount(scene)', 'update(generation, patches)', 'poll()'],
   board: ['sleep_ms(20)', 'millis()', 'mark("name", value)'],
@@ -35,7 +35,7 @@ export default function LuaEditor({ source, onChange, error }: {
       value: source, language: 'lua', theme: 'ryzobee-link', automaticLayout: true,
       minimap: { enabled: false }, fontSize: 16, lineHeight: 26, tabSize: 2,
       fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim(),
-      padding: { top: 16, bottom: 20 }, scrollBeyondLastLine: false,
+      padding: { top: 8, bottom: 20 }, scrollBeyondLastLine: false,
       ariaLabel: 'Lua 源码编辑器', fixedOverflowWidgets: true,
       bracketPairColorization: { enabled: false }, renderLineHighlight: 'none',
     });
@@ -45,7 +45,7 @@ export default function LuaEditor({ source, onChange, error }: {
   }, []);
   // Monaco owns keystrokes. React receives snapshots for persistence/execution,
   // but must never echo an older effect back over newer native input. App changes
-  // this component's key only when a local/device file replaces the document.
+  // this component's key only when the active document tab changes.
   useEffect(() => {
     const model = editor.current?.getModel();
     if (!model) return;
@@ -53,7 +53,7 @@ export default function LuaEditor({ source, onChange, error }: {
     const line = Math.min(model.getLineCount(), Math.max(1, current?.line ?? 1));
     monaco.editor.setModelMarkers(model, 'lua-runtime', current ? [{
       startLineNumber: line, endLineNumber: line, startColumn: 1,
-      endColumn: model.getLineMaxColumn(line), message: current.message, severity: monaco.MarkerSeverity.Error,
+      endColumn: model.getLineMaxColumn(line), message: current.message, severity: current.limitation ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
     }] : []);
     if (current) editor.current?.revealLineInCenter(line);
   }, [source, error]);

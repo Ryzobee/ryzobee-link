@@ -72,11 +72,11 @@ try {
     await page.keyboard.type(`\n-- ${marker}`);
     await expect(page.locator('.view-lines')).toContainText(marker);
   }
-  await expect(page.locator('.editor-status')).toContainText('草稿已保存');
+  await expect(page.locator('.editor-status')).toHaveAttribute('data-save-state', 'saved');
   // Read the public download too: visible tokens alone must not hide an older
   // React state being used for save/send while Monaco shows newer characters.
   const pendingDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: '保存草稿', exact: true }).click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
   const download = await pendingDownload;
   const stream = await download.createReadStream();
   let exportedSource = '';
@@ -117,6 +117,8 @@ try {
         files: { top: files.top, bottom: files.bottom, left: files.left, right: files.right } };
     });
     assert.ok(layout.scrollWidth <= viewport.width, `Horizontal page overflow at ${viewport.width}px`);
+    assert.ok(layout.scrollHeight <= viewport.height + 1, `Desktop page requires scrolling at ${viewport.width}×${viewport.height}`);
+    assert.ok(layout.storage.bottom <= viewport.height, 'Storage is outside the visible viewport');
     for (const box of layout.boxes) assert.ok(box.x >= 0 && box.right <= viewport.width + 1, `${box.selector} overflows the page`);
     assert.ok(Math.abs(layout.canvas.width - layout.canvas.height) < 1, `Simulator screen is not square at ${viewport.width}px`);
     assert.ok(layout.storage.top >= layout.files.top && layout.storage.bottom <= layout.files.bottom + 1

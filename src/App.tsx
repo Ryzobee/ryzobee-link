@@ -6,14 +6,15 @@ import SimulatorPanel from './components/SimulatorPanel';
 import LogPanel from './components/LogPanel';
 import Modal from './components/Modal';
 import Icon from './components/Icon';
-import { downloadLua, loadDraft, saveDraft } from './workspace/drafts';
-import { exampleSource } from './workspace/example';
+import ShortcutHelp from './components/ShortcutHelp';
+import { shortcutAria, shortcutLabel, useKeyboardShortcuts } from './workspace/shortcuts';
+import { downloadLua } from './workspace/drafts';
+import { useWorkspace } from './workspace/useWorkspace';
 import { logLevel, type LogEntry } from './workspace/logs';
 
 type DraftContent = { name: string; source: string };
 type Confirm = { kind: 'upload'; draft: DraftContent; previousSha: string; exists: boolean }
-  | { kind: 'delete'; name: string; sha: string }
-  | { kind: 'replace'; draft: DraftContent; deviceBoot?: string };
+  | { kind: 'delete'; name: string; sha: string };
 const byteCount = (source: string) => new TextEncoder().encode(source).length;
 const sizeLabel = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 const connectionLabels = { disconnected: '未连接', connecting: '连接中', 'serial-open': '识别中', ready: '已连接' };
@@ -21,56 +22,102 @@ const connectionLabels = { disconnected: '未连接', connecting: '连接中', '
 export default function App() {
   const [device] = useState(() => new DeviceClient());
   const snapshot = useSyncExternalStore(device.subscribe, device.getSnapshot);
-  const [draft, setDraft] = useState<DraftContent>({ name: 'ui_demo.lua', source: exampleSource });
-  const [editorRevision, setEditorRevision] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [savedDraft, setSavedDraft] = useState<DraftContent | null>(null);
+  const { documents, draft, loaded, saved, storageError, updateDraft: setDraft, openDocument, selectDocument, createDocument, closeDocument } = useWorkspace();
   const [selected, setSelected] = useState('');
   const [menu, setMenu] = useState('');
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const menuScrollPosition = useRef({ x: 0, y: 0, list: 0 });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
-  const [runAfterSend, setRunAfterSend] = useState(false);
+  const [runAfterSend, setRunAfterSend] = useState(true);
   const [sourceError, setSourceError] = useState<SourceError | null>(null);
-  const [lastUpload, setLastUpload] = useState<(DraftContent & { boot: string }) | null>(null);
+  const [revealLinkLogs, setRevealLinkLogs] = useState(0);
+  const [uploads, setUploads] = useState<Record<string, DraftContent & { boot: string }>>({});
+  const lastUpload = uploads[draft.name];
+  function setLastUpload(value: DraftContent & { boot: string }) {
+    setUploads(current => ({ ...current, [value.name]: value }));
+  }
   const [localLogs, setLocalLogs] = useState<LogEntry[]>([]);
   const [clearedSerialId, setClearedSerialId] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
-  const saveQueue = useRef(Promise.resolve());
+  const openButton = useRef<HTMLButtonElement>(null);
+  const saveButton = useRef<HTMLButtonElement>(null);
+  const sendButton = useRef<HTMLButtonElement>(null);
+  const simulatorButton = useRef<HTMLButtonElement>(null);
+  const helpButton = useRef<HTMLButtonElement>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  useKeyboardShortcuts({ open: openButton, save: saveButton, send: sendButton, simulate: simulatorButton, help: helpButton });
+  const tabNames = JSON.stringify(documents.map(item => item.name));
+  useEffect(() => {
+    if (!loaded) return;
+    const tab = document.getElementById('file-tab-' + draft.id)?.parentElement;
+    const strip = tab?.parentElement;
+    if (!tab || !strip) return;
+    const reveal = () => {
+      const tabs = [...strip.querySelectorAll<HTMLElement>('.editor-tab')];
+      const available = strip.clientWidth;
+      const natural = tabs.map(element => Math.max(120, Math.ceil(element.querySelector('.tab-measure')!.getBoundingClientRect().width) + 78 + (element.querySelector('small')?.getBoundingClientRect().width ?? 0)));
+      const fits = natural.reduce((sum, width) => sum + width, 0) + (tabs.length - 1) * 4 <= available;
+      // The active file keeps its full name; only inactive tabs share the remaining space.
+      const activeIndex = tabs.indexOf(tab);
+      const uniform = Math.max(120, Math.floor((available - natural[activeIndex] - (tabs.length - 1) * 4) / Math.max(1, tabs.length - 1)));
+      tabs.forEach((element, index) => { element.style.width = `${fits || index === activeIndex ? natural[index] : uniform}px`; });
+      const item = tab.getBoundingClientRect(), bounds = strip.getBoundingClientRect();
+      if (item.width > bounds.width || item.left < bounds.left) strip.scrollLeft += item.left - bounds.left;
+      else if (item.right > bounds.right) strip.scrollLeft += item.right - bounds.right;
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(strip);
+    const scrollTabs = (event: WheelEvent) => {
+      if (event.ctrlKey || strip.scrollWidth <= strip.clientWidth) return;
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const before = strip.scrollLeft;
+      strip.scrollLeft += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? strip.clientWidth : 1);
+      if (strip.scrollLeft !== before) event.preventDefault();
+    };
+    strip.addEventListener('wheel', scrollTabs, { passive: false });
+    document.fonts.addEventListener('loadingdone', reveal);
+    return () => { observer.disconnect(); strip.removeEventListener('wheel', scrollTabs); document.fonts.removeEventListener('loadingdone', reveal); };
+  }, [draft.id, loaded, tabNames]);
   const ready = snapshot.connection === 'ready';
   const serialSupported = 'serial' in navigator && window.isSecureContext;
+  const serialWarningLogged = useRef(false);
   const addLog = useCallback((source: LogEntry['source'], level: string, message: string) => {
     setLocalLogs(rows => [...rows, { id: crypto.randomUUID(), time: Date.now(), source, level: logLevel(level, message), message: message.slice(0, 8192) }].slice(-500));
   }, []);
+  useEffect(() => {
+    if (serialSupported || serialWarningLogged.current) return;
+    serialWarningLogged.current = true;
+    addLog('link', 'warn', '当前环境不支持 Web Serial，无法连接设备。请使用支持串口的浏览器，并通过 HTTPS 或 localhost 打开。');
+  }, [serialSupported, addLog]);
+  const saveLocalDraft = useCallback(() => {
+    if (!draft.id) return;
+    downloadLua(draft.name || 'untitled.lua', draft.source);
+    addLog('link', 'info', '已导出本地草稿');
+  }, [draft.id, draft.name, draft.source, addLog]);
   const simulatorLog = useCallback((level: string, message: string) => addLog('simulator', level, message), [addLog]);
+  const simulatorError = useCallback((error: SourceError | null) => {
+    setSourceError(error?.line ? error : null);
+    if (error) addLog('link', error.limitation ? 'warn' : 'error', error.diagnostic ?? error.message);
+  }, [addLog]);
   const logs = useMemo(() => [...localLogs, ...snapshot.logs.filter(row => row.id > clearedSerialId).map(row => ({
     id: `serial-${row.id}`, time: row.time, source: 'serial' as const, level: logLevel(row.kind, row.text), message: row.text, spans: row.spans,
   }))].sort((a, b) => a.time - b.time).slice(-1200), [localLogs, snapshot.logs, clearedSerialId]);
 
+  useEffect(() => () => { void device.disconnect(); }, [device]);
+  useEffect(() => { if (storageError) setNotice({ text: storageError, error: true }); }, [storageError]);
   useEffect(() => {
-    let mounted = true;
-    void loadDraft().then(stored => { if (mounted && stored) { setDraft(stored); setSavedDraft(stored); setSaved(true); } })
-      .catch(() => { if (mounted) setNotice({ text: '浏览器草稿存储不可用，请导出文件保存。', error: true }); })
-      .finally(() => { if (mounted) setLoaded(true); });
-    return () => { mounted = false; void device.disconnect(); };
-  }, [device]);
-  useEffect(() => {
-    if (!loaded) return;
-    setSaved(false);
-    let current = true;
-    const timer = setTimeout(() => {
-      saveQueue.current = saveQueue.current.catch(() => {}).then(() => saveDraft({ ...draft, updatedAt: Date.now() }));
-      void saveQueue.current.then(() => { if (current) { setSaved(true); setSavedDraft(draft); } })
-        .catch(() => { if (current) setNotice({ text: '草稿保存失败，请导出文件到电脑。', error: true }); });
-    }, 350);
-    return () => { current = false; clearTimeout(timer); };
-  }, [draft, loaded]);
-  useEffect(() => {
-    const unload = (event: BeforeUnloadEvent) => { if (!saved) { event.preventDefault(); event.returnValue = ''; } };
-    window.addEventListener('beforeunload', unload);
-    return () => window.removeEventListener('beforeunload', unload);
-  }, [saved]);
+    const closeMenu = () => setMenu('');
+    const closeMovedMenu = () => {
+      const openedAt = menuScrollPosition.current;
+      if (window.scrollX !== openedAt.x || window.scrollY !== openedAt.y) closeMenu();
+    };
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMovedMenu);
+    return () => { window.removeEventListener('resize', closeMenu); window.removeEventListener('scroll', closeMovedMenu); };
+  }, []);
   useEffect(() => {
     if (!ready) return;
     let active = true;
@@ -94,14 +141,9 @@ export default function App() {
       setNotice({ text, error: true }); addLog('link', 'error', text); return false;
     } finally { setBusy(false); }
   };
-  function replace(next: DraftContent, deviceBoot?: string) {
-    setDraft(next); setSourceError(null); setConfirm(null);
-    setEditorRevision(revision => revision + 1);
-    setLastUpload(deviceBoot ? { ...next, boot: deviceBoot } : null);
-  }
-  function requestReplace(next: DraftContent, deviceBoot?: string) {
-    if (draft.source && (draft.name !== next.name || draft.source !== next.source)) setConfirm({ kind: 'replace', draft: next, deviceBoot });
-    else replace(next, deviceBoot);
+  function openFile(next: DraftContent, deviceBoot?: string) {
+    openDocument(next);
+    if (deviceBoot) setLastUpload({ ...next, boot: deviceBoot });
   }
   async function openLocal(file: File | undefined) {
     if (!file) return;
@@ -109,16 +151,18 @@ export default function App() {
       if (!file.name.toLowerCase().endsWith('.lua')) throw new Error('请选择 .lua 文件');
       if (file.size > 1024 * 1024) throw new Error('文件过大，最多打开 1 MB 的 Lua 文件');
       const source = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
-      requestReplace({ name: file.name, source });
+      openFile({ name: file.name, source });
     });
   }
   async function readFile(name: string) {
+    if (!ready || busy) return;
     await perform(async () => {
       const file = await device.get(name);
-      requestReplace(file, device.getSnapshot().info?.boot_id);
+      openFile(file, device.getSnapshot().info?.boot_id);
     });
   }
   async function prepareSend() {
+    if (!draft.id) return;
     await perform(async () => {
       const next = { ...draft };
       if (!/^[A-Za-z0-9_-]{1,36}\.lua$/.test(next.name)) throw new Error('文件名需为 1–36 位字母、数字、_、-，后缀为 .lua');
@@ -128,20 +172,19 @@ export default function App() {
       const existing = files.find(file => file.name === next.name);
       if (existing?.protected) throw new Error('这是设备保护文件，不能覆盖');
       const previous = existing ? await device.describe(next.name) : null;
-      setRunAfterSend(false);
+      setRunAfterSend(true);
       setConfirm({ kind: 'upload', draft: next, previousSha: previous?.sha256 ?? '', exists: !!existing });
     });
   }
   async function confirmAction() {
     const pending = confirm;
     if (!pending) return;
-    if (pending.kind === 'replace') { replace(pending.draft, pending.deviceBoot); return; }
     const ok = await perform(async () => {
       if (pending.kind === 'delete') {
         await device.remove(pending.name, pending.sha);
         setConfirm(null);
         if (selected === pending.name) setSelected('');
-        if (lastUpload?.name === pending.name) setLastUpload(null);
+        setUploads(current => { const next = { ...current }; delete next[pending.name]; return next; });
         await refreshFilesAfterMutation();
       } else {
         await device.upload(pending.draft.name, pending.draft.source, pending.previousSha);
@@ -172,49 +215,76 @@ export default function App() {
   const capacity = storage?.capacity_valid && storage.total_bytes ? Math.min(100, Math.max(0, (storage.used_bytes ?? 0) / storage.total_bytes * 100)) : null;
   const job = snapshot.jobs.find(item => item.state === 'running');
   const knownError = sourceError?.source === draft.source ? sourceError : null;
+  const headerNotice = snapshot.unknown.length > 0
+    ? { text: `操作结果未知：${snapshot.unknown.join('、')}。请重新读取设备文件确认，未自动重试。`, tone: 'warning', dismissible: false }
+    : notice ? { text: notice.text, tone: notice.error ? 'error' : 'success', dismissible: true } : null;
   if (!loaded) return <div className="startup">RYZOBEE LINK</div>;
   return <main className="workbench">
     <header className="global-bar">
       <a className="brand" href="https://wiki.ryzobee.com/zh/home" target="_blank" rel="noreferrer"><img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" /><span>RYZOBEE LINK</span></a>
-      <div className="global-actions"><span className="serial-support">Web Serial：{serialSupported ? '支持' : '不支持'}</span><span className={`connection ${ready ? 'success' : ''}`} role="status"><span className="status-dot" />{connectionLabels[snapshot.connection]}</span>
-        <button disabled={busy} onClick={() => fileInput.current?.click()}>打开本地</button>
-        <button onClick={() => { downloadLua(draft.name || 'untitled.lua', draft.source); addLog('link', 'info', '已导出本地草稿'); }}>保存草稿</button>
-        <button className="primary" disabled={!ready || busy} onClick={() => void prepareSend()}>发送到设备</button>
-        <button className="connect-button" disabled={busy || !serialSupported} onClick={() => void perform(() => snapshot.connection === 'disconnected' ? device.connectFromGesture() : device.disconnect())}>{snapshot.connection === 'disconnected' ? '连接设备' : '断开连接'}</button>
+      <div className="header-status">
+        {headerNotice ? <div className={`header-notice ${headerNotice.tone}`} role={headerNotice.tone === 'success' ? 'status' : 'alert'} aria-atomic="true">
+          <Icon name={headerNotice.tone === 'success' ? 'check' : 'warning'} />
+          <span className="notice-text" title={headerNotice.text}>{headerNotice.text}</span>
+          {headerNotice.dismissible && <button className="icon-button" aria-label="关闭消息" onClick={() => setNotice(null)}><Icon name="close" /></button>}
+        </div> : null}
       </div>
-      <input ref={fileInput} className="visually-hidden" type="file" accept=".lua,text/plain" aria-label="打开本地 Lua 文件" onChange={event => { void openLocal(event.target.files?.[0]); event.target.value = ''; }} />
+      <div className="global-actions"><span className={`connection ${ready ? 'success' : ''}`} role="status"><span className="status-dot" />{connectionLabels[snapshot.connection]}</span>
+        <button ref={openButton} disabled={busy} onClick={() => fileInput.current?.click()} title={`打开本地 Lua 文件（${shortcutLabel('open')}）`} aria-keyshortcuts={shortcutAria('open')}>打开</button>
+        <button ref={saveButton} disabled={!draft.id} onClick={saveLocalDraft} title={`保存当前 Lua 到电脑（${shortcutLabel('save')}）`} aria-keyshortcuts={shortcutAria('save')}>保存</button>
+        <button ref={sendButton} className="primary" disabled={!draft.id || !ready || busy} onClick={() => void prepareSend()} title={`发送当前 Lua 到设备（${shortcutLabel('send')}）`} aria-keyshortcuts={shortcutAria('send')}>发送</button>
+        <button className="connect-button" disabled={busy || !serialSupported} title={snapshot.connection === 'disconnected' ? '连接设备' : '断开设备连接'} onClick={() => void perform(() => snapshot.connection === 'disconnected' ? device.connectFromGesture() : device.disconnect())}>{snapshot.connection === 'disconnected' ? '连接' : '断开'}</button>
+      </div>
+      <input ref={fileInput} className="visually-hidden" type="file" multiple accept=".lua,text/plain" aria-label="打开本地 Lua 文件" onChange={event => { const files = Array.from(event.target.files ?? []); void (async () => { for (const file of files) await openLocal(file); })(); event.target.value = ''; }} />
     </header>
-    {notice && <div className={`notice ${notice.error ? 'error' : 'success'}`} role={notice.error ? 'alert' : 'status'}><Icon name={notice.error ? 'warning' : 'check'} /><span>{notice.text}</span><button className="icon-button" aria-label="关闭消息" onClick={() => setNotice(null)}><Icon name="close" /></button></div>}
-    {snapshot.unknown.length > 0 && <div className="notice warning" role="alert"><Icon name="warning" /><span>操作结果未知：{snapshot.unknown.join('、')}。请重新读取设备文件确认，未自动重试。</span></div>}
     <div className="workspace-grid">
       <aside className="left-column">
-        <SimulatorPanel source={draft.source} onLog={simulatorLog} onError={setSourceError} />
+        <SimulatorPanel toggleRef={simulatorButton} hasDocument={!!draft.id} source={draft.source} sourceName={draft.name} onLog={simulatorLog} onError={simulatorError} onShowLogs={() => setRevealLinkLogs(value => value + 1)} />
         <section className="panel files-panel" aria-label="设备文件">
-          <div className="panel-heading"><h2><Icon name="folder-opened" />设备文件</h2><span className="muted">/ {ready ? snapshot.files.length : '—'} 项</span></div>
-          <div className="file-actions"><button disabled={!ready || !selected || busy} onClick={() => void readFile(selected)}>读取选中</button><button disabled={!ready || busy} onClick={() => fileInput.current?.click()}>打开本地</button><button disabled={!ready || busy} onClick={() => void perform(async () => { await device.list(); await device.storage(); })}>刷新</button></div>
-          <div className="file-list">
-            {!ready ? <div className="empty-state"><Icon name="plug" /><span>{serialSupported ? '连接设备后查看文件' : '请使用支持 Web Serial 的浏览器'}</span></div> : snapshot.files.length === 0 ? <div className="empty-state">设备暂无 Lua 文件</div> : snapshot.files.map(file => <div className={`file-row ${selected === file.name ? 'selected' : ''}`} key={file.name}>
-              <button className="file-select" onClick={() => setSelected(file.name)} onDoubleClick={() => void readFile(file.name)} title={file.name}><Icon name={file.protected ? 'lock' : 'file-code'} /><span>{file.name}</span><small>{sizeLabel(file.bytes)}</small></button>
-              <button className="icon-button" aria-label={`${file.name} 文件操作`} aria-expanded={menu === file.name} disabled={busy} onClick={() => { setSelected(file.name); setMenu(menu === file.name ? '' : file.name); }}><Icon name="ellipsis" /></button>
-              {menu === file.name && <div className="file-menu" role="group" aria-label={`${file.name} 操作`}><button onClick={() => void readFile(file.name)}>读取到编辑器</button><button onClick={() => void perform(async () => { const data = await device.get(file.name); downloadLua(data.name, data.source); })}>下载到电脑</button><button onClick={() => void perform(() => device.run(file.name), '设备已开始运行。')}>在设备运行</button><button className="danger-text" disabled={file.protected} onClick={() => void prepareDelete(file)}>删除设备文件</button></div>}
+          <div className="panel-heading"><h2><Icon name="folder-opened" />设备文件</h2>{ready && <span className="muted">{snapshot.files.some(file => file.name === selected) ? 1 : 0} / {snapshot.files.length} 项</span>}</div>
+          <div className="file-list" onScroll={event => { if (event.currentTarget.scrollTop !== menuScrollPosition.current.list) setMenu(''); }}>
+            {!ready ? <div className="empty-state"><Icon name="plug" /><span>连接设备后查看文件</span></div> : snapshot.files.length === 0 ? <div className="empty-state">设备暂无 Lua 文件</div> : snapshot.files.map(file => <div className={`file-row ${selected === file.name ? 'selected' : ''}`} key={file.name}>
+              <button className="file-select" disabled={busy} onClick={() => setSelected(file.name)} onDoubleClick={() => void readFile(file.name)} title={file.name}><Icon name={file.protected ? 'lock' : 'file-code'} /><span>{file.name}</span><small>{sizeLabel(file.bytes)}</small></button>
+              <button className="icon-button" aria-label={`${file.name} 文件操作`} aria-expanded={menu === file.name} disabled={busy} onClick={event => {
+                const anchor = event.currentTarget.getBoundingClientRect();
+                // Ignore a delayed scroll event from bringing this button into view.
+                menuScrollPosition.current = { x: window.scrollX, y: window.scrollY, list: event.currentTarget.closest('.file-list')?.scrollTop ?? 0 };
+                setMenuPosition({ top: Math.max(12, Math.min(anchor.bottom + 4, window.innerHeight - 184)), left: Math.max(12, Math.min(anchor.right - 192, window.innerWidth - 204)) });
+                setSelected(file.name); setMenu(menu === file.name ? '' : file.name);
+              }}><Icon name="ellipsis" /></button>
+              {menu === file.name && <div className="file-menu" style={menuPosition} role="group" aria-label={`${file.name} 操作`}><button onClick={() => void readFile(file.name)}>读取到编辑器</button><button onClick={() => void perform(async () => { const data = await device.get(file.name); downloadLua(data.name, data.source); })}>下载到电脑</button><button onClick={() => void perform(() => device.run(file.name), '设备已开始运行。')}>在设备运行</button><button className="danger-text" disabled={file.protected} onClick={() => void prepareDelete(file)}>删除设备文件</button></div>}
             </div>)}
           </div>
           {job && <div className="device-job"><span title={job.name}>运行中 · {job.name}</span><button disabled={busy} onClick={() => void perform(() => device.stop(job.job_id), '已请求停止设备脚本。')}>停止</button></div>}
-          <div className="storage"><div className="storage-info"><span>设备 / · Web Serial</span><span>{ready ? '115200' : '—'}</span></div><div className="storage-track"><span style={{ width: `${capacity ?? 0}%` }} /></div><div className="storage-info"><span>STORAGE</span><span>{capacity === null ? '—' : `${capacity.toFixed(0)}% · ${sizeLabel(storage!.used_bytes ?? 0)}`}</span></div></div>
+          <div className="storage"><div className="storage-track"><span style={{ width: `${capacity ?? 0}%` }} /></div><div className="storage-info"><span>STORAGE</span><span>{capacity === null ? '—' : `${capacity.toFixed(0)}% · ${sizeLabel(storage!.used_bytes ?? 0)}`}</span></div></div>
         </section>
       </aside>
       <div className="right-column">
         <section className="panel editor-panel" aria-label="Lua 编辑器">
-          <div className="editor-heading"><label className="file-tab"><Icon name="file-code" /><input aria-label="Lua 文件名" value={draft.name} maxLength={80} onChange={event => setDraft(current => ({ ...current, name: event.target.value }))} /><span className={`draft-dot ${synced ? 'synced' : ''}`} /></label><span className={`editor-status ${knownError ? 'error' : ''}`} role="status">{knownError ? `第 ${knownError.line} 行 · 运行错误` : synced ? '已写入设备 · 校验通过' : `${saved && savedDraft?.source === draft.source ? '草稿已保存' : '保存中'} · 未写入设备`}</span></div>
-          <LuaEditor key={editorRevision} source={draft.source} onChange={source => setDraft(current => ({ ...current, source }))} error={sourceError} />
+          <div className="editor-tabs-row">
+            <div className="editor-tabs" role="tablist" aria-label="打开的 Lua 文件">
+              {documents.map((item, index) => <div key={item.id} className={`editor-tab ${item.id === draft.id ? 'active' : ''}`} role="presentation"><span className="tab-measure" aria-hidden="true">{item.name || 'untitled.lua'}</span><button role="tab" aria-label={item.name || 'untitled.lua'} id={'file-tab-' + item.id} aria-controls="lua-document" aria-selected={item.id === draft.id} tabIndex={item.id === draft.id ? 0 : -1}
+                title={item.name} onClick={() => selectDocument(item.id)} onKeyDown={event => {
+                  const next = event.key === 'ArrowRight' ? (index + 1) % documents.length : event.key === 'ArrowLeft' ? (index + documents.length - 1) % documents.length : event.key === 'Home' ? 0 : event.key === 'End' ? documents.length - 1 : -1;
+                  if (next < 0) return;
+                  event.preventDefault(); selectDocument(documents[next].id);
+                  document.getElementById('file-tab-' + documents[next].id)?.focus();
+                }}><Icon name="file-code" />{item.id !== draft.id && <span className="tab-name">{item.name || 'untitled.lua'}</span>}</button>{item.id === draft.id && <input aria-label="Lua 文件名" value={draft.name} maxLength={80} title={draft.name} onChange={event => setDraft(current => ({ ...current, name: event.target.value }))} />}{documents.slice(0, index).filter(other => other.name === item.name).length > 0 && <small>· {documents.slice(0, index).filter(other => other.name === item.name).length + 1}</small>}<button className="tab-close" aria-label={`关闭 ${item.name || 'untitled.lua'}`} title="关闭标签" onClick={() => closeDocument(item.id)}><Icon name="close" /></button></div>)}
+            </div>
+            <button className="icon-button" aria-label="新建 Lua 文件" onClick={createDocument}><Icon name="add" /></button>
+            <button ref={helpButton} className="icon-button" aria-label="快捷键" disabled={busy} title={`快捷键（${shortcutLabel('help')}）`} aria-keyshortcuts={shortcutAria('help')} onClick={() => { setMenu(''); setShowShortcuts(true); }}><Icon name="keyboard" /></button>
+            <span className={`editor-status ${knownError ? knownError.limitation ? 'warning' : 'error' : ''}`} role="status" data-save-state={saved ? 'saved' : 'saving'}>{!draft.id ? '' : knownError ? `第 ${knownError.line} 行 · ${knownError.limitation ? '模拟器限制' : '运行错误'}` : synced ? '已写入设备 · 校验通过' : ''}</span>
+          </div>
+          {draft.id ? <div className="editor-document" id="lua-document" role="tabpanel" aria-labelledby={'file-tab-' + draft.id}><LuaEditor key={draft.id} source={draft.source} onChange={source => setDraft(current => ({ ...current, source }))} error={sourceError} /></div> : <div className="editor-empty"><Icon name="files" /><button onClick={createDocument}>新建 Lua 文件</button><button onClick={() => fileInput.current?.click()}>打开本地文件</button></div>}
         </section>
-        <LogPanel logs={logs} onClear={() => { setLocalLogs([]); setClearedSerialId(snapshot.logs.at(-1)?.id ?? 0); }} />
+        <LogPanel logs={logs} revealLink={revealLinkLogs} onClear={() => { setLocalLogs([]); setClearedSerialId(snapshot.logs.at(-1)?.id ?? 0); }} />
       </div>
     </div>
-    {confirm && <Modal busy={busy} title={confirm.kind === 'delete' ? '删除设备中的文件？' : confirm.kind === 'replace' ? '替换当前草稿？' : confirm.exists ? '覆盖设备中的脚本？' : '发送脚本到设备'} onClose={() => setConfirm(null)}>
+    {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
+    {confirm && <Modal busy={busy} title={confirm.kind === 'delete' ? '删除设备中的文件？' : confirm.exists ? '覆盖设备中的脚本？' : '发送脚本到设备'} onClose={() => setConfirm(null)}>
       <div className="modal-file"><Icon name="file-code" />{confirm.kind === 'delete' ? confirm.name : confirm.draft.name}</div>
-      {confirm.kind === 'delete' ? <p>仅删除设备文件，本地草稿保留。</p> : confirm.kind === 'replace' ? <p>当前编辑内容会被替换；需要保留时，请先保存草稿到电脑。</p> : <><p>{sizeLabel(byteCount(confirm.draft.source))} · RootMaker</p><label className="checkbox"><input type="checkbox" checked={runAfterSend} onChange={event => setRunAfterSend(event.target.checked)} />发送后自动运行</label></>}
-      <div className="modal-actions"><button disabled={busy} onClick={() => setConfirm(null)}>取消</button><button className={confirm.kind === 'delete' ? 'danger' : 'primary'} disabled={busy} onClick={() => void confirmAction()}>{busy ? '处理中…' : confirm.kind === 'delete' ? '删除设备文件' : confirm.kind === 'replace' ? '替换草稿' : '确认写入'}</button></div>
+      {confirm.kind === 'delete' ? <p>仅删除设备文件，本地草稿保留。</p> : <><p>{sizeLabel(byteCount(confirm.draft.source))} · RootMaker</p><label className="checkbox"><input type="checkbox" checked={runAfterSend} onChange={event => setRunAfterSend(event.target.checked)} />发送后自动运行</label></>}
+      <div className="modal-actions"><button disabled={busy} onClick={() => setConfirm(null)}>取消</button><button className={confirm.kind === 'delete' ? 'danger' : 'primary'} disabled={busy} onClick={() => void confirmAction()}>{busy ? '处理中…' : confirm.kind === 'delete' ? '删除设备文件' : '确认'}</button></div>
     </Modal>}
   </main>;
 }

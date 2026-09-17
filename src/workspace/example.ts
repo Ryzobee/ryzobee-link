@@ -1,4 +1,7 @@
 export const exampleSource = `-- ryz-app/1
+-- @author: Unknown
+-- @version: 0.1.0
+-- @description: 点击按钮递增计数，并输出当前计数。
 -- RYZOBEE LINK · 点击屏幕中的按钮
 local board = require('ryzobee')
 local ui = require('ui')

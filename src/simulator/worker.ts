@@ -37,7 +37,7 @@ scope.onmessage = ({data}) => {
   if (data.type === 'stop') { stopping = true; runtime?._link_stop(); return }
   if (data.type === 'pointer') { runtime?._link_pointer(data.x,data.y,Number(data.pressed)); return }
   if (data.type !== 'run') return
-  void execute(data.source, data.baseURL).catch(error => send({type:'error',message:error instanceof Error ? error.message : String(error)}))
+  void execute(data.source, data.baseURL).catch(error => send({type:'error',phase:'init',message:error instanceof Error ? error.message : String(error)}))
 }
 async function execute(source: string, baseURL: string) {
   const bytes = new TextEncoder().encode(source)
@@ -51,7 +51,7 @@ async function execute(source: string, baseURL: string) {
     printErr: (message: string) => send({type:'log',level:'error',message}),
     onResult: (result: {ok: boolean; phase: string; error: string}) => {
       flush()
-      if (!result.ok && result.phase !== 'stopped') send({type:'error',message:result.error || result.phase})
+      if (!result.ok && result.phase !== 'stopped') send({type:'error',phase:result.phase,message:result.error || result.phase})
     },
   })
   if (stopping) { send({type:'done'}); return }

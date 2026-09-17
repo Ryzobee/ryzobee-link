@@ -4,7 +4,7 @@ export interface SimulatorCallbacks {
   onFrame(frame: SimulatorFrame): void
   onLog(log: { level: 'info' | 'error'; message: string }): void
   onState(state: SimulatorState): void
-  onError(message: string): void
+  onError(message: string, phase?: string): void
 }
 export interface Simulator {
   run(source: string): Promise<void>
@@ -22,6 +22,7 @@ export function createSimulator(callbacks: SimulatorCallbacks): Simulator {
   let stopTimer: ReturnType<typeof setTimeout> | undefined
   let stopPromise: Promise<void> | undefined
   function cleanup() {
+    ++generation // Ignore terminal workers' already-queued frame/state/done messages.
     worker?.terminate(); worker = undefined
     if (stopTimer) clearTimeout(stopTimer)
     stopTimer = undefined
@@ -41,11 +42,11 @@ export function createSimulator(callbacks: SimulatorCallbacks): Simulator {
         else if (data.type === 'log') callbacks.onLog({level:data.level,message:data.message})
         else if (data.type === 'state') callbacks.onState(data.state)
         else if (data.type === 'done') { cleanup(); callbacks.onState('idle') }
-        else if (data.type === 'error') { cleanup(); callbacks.onError(data.message); callbacks.onState('error') }
+        else if (data.type === 'error') { cleanup(); callbacks.onError(data.message, data.phase); callbacks.onState('error') }
       }
       worker.onerror = event => {
         if (current !== generation) return
-        cleanup(); callbacks.onError(event.message || '模拟器加载失败'); callbacks.onState('error')
+        cleanup(); callbacks.onError(event.message || '模拟器加载失败', 'init'); callbacks.onState('error')
       }
       worker.postMessage({type:'run',source,baseURL:new URL(import.meta.env.BASE_URL + 'simulator/',location.href).href})
     },

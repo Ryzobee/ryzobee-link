@@ -3,11 +3,12 @@ import type { Page } from '@playwright/test';
 export interface SerialRequest { op: string; action?: string; command?: string; name?: string; id: string }
 
 /** A browser stream peer, not a mocked DeviceClient: the real framing/CAS code runs. */
-export async function installSerial(page: Page, options: { failRun?: boolean } = {}) {
-  await page.addInitScript(({ failRun }) => {
+export async function installSerial(page: Page, options: { failRun?: boolean; fileCount?: number } = {}) {
+  await page.addInitScript(({ failRun, fileCount = 1 }) => {
     const encoder = new TextEncoder();
     const boot = 'e2e12345';
     const files = new Map([['welcome.lua', 'print("来自设备")']]);
+    for (let index = 1; index < fileCount; index++) files.set('example_' + index + '.lua', 'print("来自设备")');
     const requests: Record<string, unknown>[] = [];
     Object.defineProperty(window, '__serialRequests', { value: requests });
     const hash = async (source: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(source))), value => value.toString(16).padStart(2, '0')).join('');
