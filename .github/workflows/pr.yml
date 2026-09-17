@@ -1,0 +1,32 @@
+name: Pull request
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  pr-check:
+    name: PR checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node --input-type=module <<'JS'
+          const pairs = ['✨ feat', '🐛 fix', '🎨 style', '♻️ refactor', '⚡️ perf', '📝 docs', '✅ test', '🔧 chore', '👷 ci', '⏪️ revert'];
+          const pattern = new RegExp(`^(?:${pairs.join('|')})\\([a-z0-9][a-z0-9-]*\\): \\S[^\\r\\n]*$`);
+          if (!pattern.test(process.env.PR_TITLE ?? '')) {
+            console.error('Use an approved emoji type(scope): summary. See CONTRIBUTING.md.');
+            process.exit(1);
+          }
+          JS
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
