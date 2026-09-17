@@ -77,6 +77,10 @@ Drafts are stored in this browser's IndexedDB, not uploaded to a server. Clearin
 
 ## Development
 
+### AI coding skill
+
+The standalone [RyzoBee Lua skill](skills/ryzobee-lua/README.md#english) helps an AI assistant author and validate compatible scripts. Its guide covers installation, invocation, firmware prerequisites and the workflow for opening generated files in Link. Copy the complete folder, not only `SKILL.md`. Installing it does not add an AI backend or an upload-validation requirement to Link.
+
 ```sh
 npm run typecheck
 npm test

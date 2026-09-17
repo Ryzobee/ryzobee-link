@@ -127,6 +127,10 @@ docs/             架构与实际验收记录
 
 ## 验证
 
+### AI 编程技能
+
+仓库提供独立的 [RyzoBee Lua skill](skills/ryzobee-lua/README.md#简体中文)，用于让 AI 按固件接口编写和验证脚本。安装、调用示例、固件依赖及 Link 使用流程见技能说明。请复制整个文件夹，不要只复制 `SKILL.md`；安装不会给 Link 添加 AI 后端，也不会增加发送设备的验证门槛。
+
 ```sh
 npm run typecheck
 npm test

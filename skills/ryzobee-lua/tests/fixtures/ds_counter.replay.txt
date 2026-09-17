@@ -1,0 +1,5 @@
+check 0
+pointer 100 down 120 188
+pointer 140 up
+check 180
+end 300
