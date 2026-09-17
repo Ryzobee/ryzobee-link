@@ -1,8 +1,28 @@
-# RYZOBEE LINK
+<p align="center">
+  <a href="https://wiki.ryzobee.com/zh/home"><img src="public/logo.svg" width="80" alt="Ryzobee 标志"></a>
+</p>
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+<h1 align="center">RYZOBEE LINK</h1>
+<p align="center"><strong>从一段 Lua，到你手中的设备。</strong></p>
+<p align="center">编写 · 模拟 · 发送 · 调试</p>
+<p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></p>
+<p align="center"><a href="#开始">快速开始</a> · <a href="#界面预览">界面预览</a> · <a href="#静态部署">部署</a> · <a href="skills/ryzobee-lua/README.md#简体中文">AI 技能</a> · <a href="CONTRIBUTING.md">参与贡献</a></p>
+<p align="center"><a href="LICENSE">MIT 开源</a> · 纯静态网页 · Web Serial · Lua + LVGL + WebAssembly</p>
 
-Ryzobee 的轻量 Lua 上位机：编辑脚本、交互式 UI 模拟、串口文件管理和彩色日志。纯前端静态应用，无账户、模型平台、业务后端或 Electron 依赖。
+面向 **Ryzobee RootMaker** 的轻量 Lua 工作台。在浏览器中编辑脚本、交互式模拟 UI、通过 USB 串口传输文件并查看日志，无需业务后端或桌面安装包。
+
+![RYZOBEE LINK 实际运行计数器，展示 Lua 编辑器、交互模拟器和日志](docs/screenshots/workbench.png)
+
+<p align="center"><em>真实浏览器截图：内置计数器点击三次后的状态，未连接串口设备。</em></p>
+
+## 为什么选择 Link
+
+- **打开即用**：纯前端静态应用，无账号、模型平台或 Electron 依赖。
+- **多文件编辑**：Monaco 高亮、文件标签、本地草稿、导入导出及快捷键。
+- **真实 UI 交互**：Lua + LVGL 的 WebAssembly 运行时，点击屏幕即可得到反馈。
+- **串口文件管理**：读取、发送、运行和删除脚本，文件列表与容量自动更新。
+- **直接发送设备**：不要求先通过模拟，不需要审核令牌。
+- **离线可用**：生产版首次完成资源缓存后可离线打开。
 
 ## 开始
 
@@ -23,6 +43,28 @@ npm run dev
 设备文件双击读取到编辑器，或从文件的 `…` 菜单读取、下载、运行及删除。「打开」只在顶部保留；没有手动刷新入口，连接成功、写入和删除后自动更新文件列表和容量。
 
 **发送到设备独立于模拟器**，不需要仿真通过、审核或令牌。SHA-256 只校验文件版本和传输完整性。覆盖与删除须明确确认；文件保护状态来自设备。没有新增自启设置。
+
+## 界面预览
+
+### 多文件编辑，思路不断线
+
+在多个 Lua 标签之间切换，从符合固件规范的元数据模板开始。草稿保留在当前浏览器，需要备份时导出到电脑。
+
+![多文件标签与新建 Lua 脚本的元数据模板](docs/screenshots/editor.png)
+
+### 点击屏幕，立即交互
+
+运行当前源码，在 240×240 模拟屏幕中操作并查看反馈。这是 UI 运行时，不是 ESP32 电气或外设模拟器。
+
+<p align="center"><img src="docs/screenshots/simulator.png" width="360" alt="计数器点击三次后的交互式模拟器"></p>
+
+### 日志分来源，调试更清楚
+
+设备串口、模拟器和 Link 消息分别查看，支持级别筛选及暂停滚动。
+
+![模拟器日志显示三次点击产生的计数输出](docs/screenshots/logs.png)
+
+以上均为当前应用与内置示例的实际截图，没有注入模拟串口数据。设备连接面向桌面 Chrome / Edge，截图不代表本次进行了实机验收。详见[截图说明](docs/screenshots/README.md)。
 
 ## 保存与离线
 
