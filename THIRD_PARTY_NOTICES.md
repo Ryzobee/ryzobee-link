@@ -1,7 +1,8 @@
 # Third-party notices
 
-This private product repository does not assign a new license to Ryzobee's brand,
-Studio source, or firmware source. Their ownership and existing terms remain.
+Ryzobee Link's original source is MIT-licensed; see LICENSE. Third-party assets
+and bundled runtime dependencies retain their existing licenses. This license
+does not relicense the separate Studio/firmware repositories or grant trademark rights.
 
 ## Browser application
 
