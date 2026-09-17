@@ -67,18 +67,7 @@ python3 scripts/check_hardware_runtime.py --firmware-root ROOT --virtual-ms 5000
 
 `success` 只表示 fixture 可用，并非每次 I/O 都成功：原有测试 fixture 保留 UART/SPI 短写、I2C 0x52 超时、部分 ADC 不支持校准、LED 延迟完成等输入。检查返回值，不为使测试“通过”而删去错误处理。
 
-技能自身的回归用例可重复运行（路径相对技能目录）：
-
-```sh
-python3 tests/test_ui_contract.py --firmware-root ROOT
-python3 tests/test_hardware_contract.py --firmware-root ROOT --output-dir /tmp/ryz-contract-results
-python3 tests/test_generated_scripts.py --firmware-root ROOT --output-dir /tmp/ryz-generated-results
-python3 tests/test_uart_semantics.py --firmware-root ROOT --output-dir /tmp/ryz-uart-results
-```
-
-用独立输出目录保留每条 Lua 用例、回调计数和结果；既有结果需保留时换新目录。前两套测试分别覆盖 UI 基础绑定与 57 个硬件/handle/tools 方法，但不替代对新生成脚本的测试。
-
-第三项重放 `tests/fixtures` 中实际由 DeepSeek 生成的五份最终脚本（其中两份经反馈修正）及两个反例，不调用模型、不需要 API key。反例故意保留错误返回处理/载荷错误，证明仅语法和运行成功还不够。第四项对最终 UART 脚本和中间反例注入正常回复、收到数据后失败、持续数据填满缓存、设备不可用，核对实际完成的 LED RGB、接收上限及清理。它们是测试数据，不是无需验证即可直接发送设备的模板。故障测试仍须按本次脚本的具体分支补充。
+本技能包不附带维护者回归套件。使用者只需按本次脚本的实际调用与输入分支进行针对性校验，不需要运行技能开发时的全套测试。以上 `tests/lua_peripherals_test.c` 指所选固件中的 Host 依赖，不是技能附件。
 
 ## 不可跳过的完成边界
 

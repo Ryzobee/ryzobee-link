@@ -35,7 +35,7 @@ Copy-Item -Recurse ./skills/ryzobee-lua $skillDest
 
 只对某项目使用时，将完整文件夹复制到该项目的 `.agents/skills/ryzobee-lua`。已使用 `~/.codex/skills` 的旧配置请按客户端实际加载位置管理，不要同时安装两份。安装后在技能选择器检查 `ryzobee-lua`，未出现则重启客户端。[Codex 官方技能说明](https://learn.chatgpt.com/docs/build-skills)
 
-其他 Agent 可加载 `SKILL.md` 并按链接读取 `references/`，同时保留 `scripts/`、`assets/`、`tests/` 相对路径；仅把入口文件粘贴到聊天会丢失接口和验证资料。
+其他 Agent 可加载 `SKILL.md` 并按链接读取 `references/`，同时保留 `scripts/`、`assets/` 相对路径；仅把入口文件粘贴到聊天会丢失接口和验证资料。
 
 ### 使用
 
@@ -67,9 +67,8 @@ python3 scripts/check_ui_runtime.py --firmware-root /absolute/path/to/firmware/r
 - `SKILL.md`：入口和工作流程；`agents/`：Codex 展示配置。
 - `references/`：元数据、运行时、UI、硬件与工具接口。
 - `assets/`：计数器示例；`scripts/`：Host 校验器。
-- `tests/`：契约测试、正反例和带日期的历史验证记录。反例故意有错，不可作为应用模板。
 
-参考基线为 2026-09-17 的 V0.10.1 工作树，含当时未提交内容。历史测试记录不代表本次重新运行，也不保证任何同版本固件都兼容。以用户选定源码为准；见 [来源与验证](references/sources-and-validation.md)。更新时比较整包，不只替换入口。技能按随包 [MIT](LICENSE) 协议发布。
+参考基线为 2026-09-17 的 V0.10.1 工作树，含当时未提交内容，不保证任何同版本固件都兼容。以用户选定源码为准；见 [来源与验证](references/sources-and-validation.md)。用户技能包不包含维护者回归测试；`scripts/` 仅用于针对用户脚本的校验。更新时比较整包，不只替换入口。技能按随包 [MIT](LICENSE) 协议发布。
 
 ## English
 
@@ -87,4 +86,4 @@ Reading the skill needs no compiler. Optional validators require Python 3.9+, a 
 
 From the skill directory, run the two commands above with your actual firmware path. The first parses metadata/syntax without running Lua; the second executes a bounded UI Host. Neither proves real hardware or LVGL pixel correctness. Open the resulting script in Link, simulate supported UI if useful, then explicitly connect/send when desired. Validation is **not** an upload gate.
 
-The references describe a dated V0.10.1 working tree, including uncommitted changes. They are not a universal compatibility guarantee or a promise that Link's pinned Wasm has identical APIs. Historical reports under `tests/` are not fresh test results. Follow the [source notes](references/sources-and-validation.md) and [validation guide](references/interface-validation.md). Negative fixtures intentionally contain mistakes. The skill includes its [MIT License](LICENSE).
+The references describe a dated V0.10.1 working tree, including uncommitted changes. They are not a universal compatibility guarantee or a promise that Link's pinned Wasm has identical APIs. Maintainer regression suites are excluded from this package; `scripts/` provides targeted validation of user scripts. Follow the [source notes](references/sources-and-validation.md) and [validation guide](references/interface-validation.md). The skill includes its [MIT License](LICENSE).
