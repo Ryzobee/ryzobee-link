@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
-import { createSimulator } from '../simulator';
+import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent, type RefObject } from 'react';
+import { SimulatorSession } from '../simulator/session';
 import type { SourceError } from './LuaEditor';
 import Icon from './Icon';
 import SimulatorFaultScreen from './SimulatorFaultScreen';
-import { describeFault, type SimulatorFault } from '../simulator/fault';
 import { shortcutAria, shortcutLabel } from '../workspace/shortcuts';
 
-export default function SimulatorPanel({ source, sourceName, onLog, onError, onShowLogs, toggleRef, hasDocument = true }: {
+export default function SimulatorPanel({ source, sourceName, onLog, onError, onShowLogs, toggleRef, hasDocument = true, session: providedSession }: {
+  session?: SimulatorSession;
   toggleRef?: RefObject<HTMLButtonElement | null>;
   source: string;
   sourceName: string;
@@ -16,33 +16,26 @@ export default function SimulatorPanel({ source, sourceName, onLog, onError, onS
   onError: (error: SourceError | null) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const simulator = useRef<ReturnType<typeof createSimulator> | null>(null);
-  const [state, setState] = useState('idle');
-  const [fault, setFault] = useState<SimulatorFault | null>(null);
-  const executionSource = useRef('');
-  const executionName = useRef('');
+  const [ownedSession] = useState(() => new SimulatorSession());
+  const session = providedSession ?? ownedSession;
+  const { state, fault, runId } = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const activePointer = useRef<number | null>(null);
   const actionPending = useRef(false);
   const logCallback = useRef(onLog); logCallback.current = onLog;
   const errorCallback = useRef(onError); errorCallback.current = onError;
-  function reportFault(message: string, phase = 'runtime') {
-    const next = describeFault(message, phase, executionName.current);
-    setFault(next);
-    errorCallback.current({ source: executionSource.current, message: next.limitation ? next.summary : message, diagnostic: message, limitation: next.limitation, line: next.line });
-  }
   useEffect(() => {
-    const runtime = createSimulator({
-      onFrame: frame => {
-        const context = canvas.current?.getContext('2d');
-        if (context) context.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels), frame.width, frame.height), 0, 0);
-      },
-      onState: next => setState(next),
-      onLog: event => logCallback.current(event.level, event.message),
-      onError: reportFault,
+    activePointer.current = null;
+    canvas.current?.getContext('2d')?.clearRect(0, 0, 240, 240);
+    return session.onFrame(frame => {
+      const context = canvas.current?.getContext('2d');
+      if (context) context.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels), frame.width, frame.height), 0, 0);
     });
-    simulator.current = runtime;
-    return () => { runtime.dispose(); simulator.current = null; };
-  }, []);
+  }, [session, runId]);
+  useEffect(() => {
+    const removeLog = session.onLog(event => logCallback.current(event.level, event.message));
+    const removeError = session.onError(error => errorCallback.current(error));
+    return () => { removeLog(); removeError(); if (!providedSession) session.dispose(); };
+  }, [session, providedSession]);
   const labels: Record<string, string> = { idle: '未运行', loading: '加载中', running: '运行中', stopping: '停止中', error: fault?.limitation ? '无法模拟' : '运行失败' };
   const running = state === 'running';
   const transitioning = state === 'loading' || state === 'stopping';
@@ -50,36 +43,26 @@ export default function SimulatorPanel({ source, sourceName, onLog, onError, onS
   async function run() {
     if (!hasDocument) return;
     activePointer.current = null;
-    executionSource.current = source; executionName.current = sourceName;
-    setFault(null); onError(null);
     canvas.current?.getContext('2d')?.clearRect(0, 0, 240, 240);
-    try { await simulator.current?.run(source); }
-    catch (error) {
-      const text = error instanceof Error ? error.message : String(error);
-      reportFault(text, 'init'); setState('error');
-    }
+    await session.run(source, sourceName);
   }
   async function toggle() {
     if (actionPending.current || transitioning || (!running && !hasDocument)) return;
     actionPending.current = true;
-    // Reflect the transition before the runtime's first asynchronous callback.
-    setState(running ? 'stopping' : 'loading');
     try {
       if (running) {
         activePointer.current = null;
-        await simulator.current?.stop();
+        await session.stop();
       } else await run();
-    } catch (error) {
-      reportFault(String(error), 'init');
-      setState('error');
-    } finally { actionPending.current = false; }
+    } catch { /* The shared session reports current-run errors to every caller. */ }
+    finally { actionPending.current = false; }
   }
   function pointer(event: PointerEvent<HTMLCanvasElement>, pressed: boolean, cancel = false) {
     if (state !== 'running') return;
     const box = event.currentTarget.getBoundingClientRect();
     const x = cancel ? -1 : Math.floor((event.clientX - box.left) * 240 / box.width);
     const y = cancel ? -1 : Math.floor((event.clientY - box.top) * 240 / box.height);
-    simulator.current?.pointer({ x, y, pressed });
+    session.pointer({ x, y, pressed });
   }
   return <section className="panel simulator-panel" aria-label="UI 模拟器">
     <div className="panel-heading"><h2><Icon name="screen-full" />模拟器</h2><div className="actions simulator-controls">
@@ -101,7 +84,7 @@ export default function SimulatorPanel({ source, sourceName, onLog, onError, onS
         onPointerCancel={event => { if (activePointer.current !== event.pointerId) return; activePointer.current = null; pointer(event, false, true); }}
         onLostPointerCapture={event => { if (activePointer.current !== event.pointerId) return; activePointer.current = null; pointer(event, false, true); }} />
       {state === 'idle' && <div className="simulator-empty" aria-hidden="true"><img src="./device/simulator-boot.svg" alt="" draggable={false} /><span>SIMULATOR</span></div>}
-      {state === 'error' && fault && <SimulatorFaultScreen fault={fault} onHome={() => { setFault(null); setState('idle'); }} onLogs={onShowLogs} />}
+      {state === 'error' && fault && <SimulatorFaultScreen fault={fault} onHome={() => session.clearFault()} onLogs={onShowLogs} />}
       </div>
     </div></div>
   </section>;

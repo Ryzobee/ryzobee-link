@@ -18,20 +18,38 @@ export async function installSerial(page: Page, options: { failRun?: boolean; fi
     };
     const versioned = (request: Record<string, unknown>, value: Record<string, unknown>) => reply(request, { schema: 'ryz-script-store/1', boot_id: boot, ...value });
     let revision = 1;
+    type PeerJob = { job_id: string; name: string; state: 'running' | 'stopped'; stop_requested?: boolean };
+    let job: PeerJob | null = null;
+    let recentJob: PeerJob | null = null;
+    let jobSequence = 0;
     const port = {
       readable: new ReadableStream<Uint8Array>({ start: value => { controller = value; } }),
       writable: new WritableStream<Uint8Array>({ write: async bytes => {
         const request = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
         requests.push(request);
         const name = String(request.name ?? '');
-        if (request.op === 'info') reply(request, { chip: 'ESP32-S3', firmware: 'link-e2e', protocol_version: 2, boot_id: boot, source_limit_bytes: 16384, job: null, recent_job: null });
+        if (request.op === 'info') reply(request, { chip: 'ESP32-S3', firmware: 'link-e2e', protocol_version: 2, boot_id: boot, source_limit_bytes: 16384, job, recent_job: recentJob });
         else if (request.op === 'get') {
           const source = files.get(name);
           if (source === undefined) reply(request, { ok: false, error: 'script not found' });
           else reply(request, { name, source, bytes: encoder.encode(source).length, sha256: await hash(source) });
         } else if (request.op === 'console') {
-          if (String(request.command).startsWith('lua --run-async') && failRun) reply(request, { ok: false, error: 'Lua 启动失败：设备运行资源不足' });
-          else reply(request, { output: 'started', job: { job_id: `${boot}-1`, name: String(request.command).split(' ').at(-1), state: 'running' } });
+          const command = String(request.command);
+          if (command.startsWith('lua --run-async')) {
+            if (failRun) reply(request, { ok: false, error: 'Lua 启动失败：设备运行资源不足' });
+            else {
+              job = { job_id: `${boot}-${++jobSequence}`, name: command.split(' ').at(-1)!, state: 'running' };
+              reply(request, { output: 'started', job });
+            }
+          } else if (command.startsWith('lua --stop ')) {
+            if (!job || command.split(' ').at(-1) !== job.job_id) reply(request, { ok: false, error: 'job not found' });
+            else {
+              recentJob = { ...job, state: 'stopped', stop_requested: true };
+              job = null;
+              reply(request, { output: 'stopped', job: recentJob });
+            }
+          } else if (command === 'lua --jobs') reply(request, { jobs: [job, recentJob].filter(Boolean) });
+          else reply(request, { output: '' });
         } else if (request.op === 'scripts') {
           if (request.schema !== 'ryz-script-store/1' || request.boot_id !== boot) throw new Error('Client sent invalid scripts identity');
           if (request.action === 'catalog') {

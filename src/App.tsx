@@ -11,6 +11,11 @@ import { shortcutAria, shortcutLabel, useKeyboardShortcuts } from './workspace/s
 import { downloadLua } from './workspace/drafts';
 import { useWorkspace } from './workspace/useWorkspace';
 import { logLevel, type LogEntry } from './workspace/logs';
+import { WorkspaceStore } from './workspace/store';
+import { SimulatorSession } from './simulator/session';
+import { CommandKernel } from './commands/kernel';
+import { CommandOwner } from './commands/owner';
+import { CommandLogs } from './commands/logs';
 
 type DraftContent = { name: string; source: string };
 type Confirm = { kind: 'upload'; draft: DraftContent; previousSha: string; exists: boolean }
@@ -21,13 +26,24 @@ const connectionLabels = { disconnected: '未连接', connecting: '连接中', '
 
 export default function App() {
   const [device] = useState(() => new DeviceClient());
+  const [workspace] = useState(() => new WorkspaceStore());
+  const [simulator] = useState(() => new SimulatorSession());
+  const [commandLogs] = useState(() => new CommandLogs());
+  const [connectionRequested, setConnectionRequested] = useState(false);
+  const [editorRevisions, setEditorRevisions] = useState<Record<string, number>>({});
+  const [kernel] = useState(() => new CommandKernel(device, workspace, simulator, commandLogs, {
+    connectionNeeded: () => setConnectionRequested(true),
+    externalEdit: id => setEditorRevisions(current => ({ ...current, [id]: (current[id] ?? 0) + 1 })),
+  }));
+  const [owner] = useState(() => new CommandOwner(kernel));
+  const control = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
+  const busy = useSyncExternalStore(kernel.subscribe, kernel.getSnapshot);
   const snapshot = useSyncExternalStore(device.subscribe, device.getSnapshot);
-  const { documents, draft, loaded, saved, storageError, updateDraft: setDraft, openDocument, selectDocument, createDocument, closeDocument } = useWorkspace();
+  const { documents, draft, loaded, saved, storageError, updateDraft: setDraft, openDocument, selectDocument, createDocument, closeDocument } = useWorkspace(workspace);
   const [selected, setSelected] = useState('');
   const [menu, setMenu] = useState('');
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuScrollPosition = useRef({ x: 0, y: 0, list: 0 });
-  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [runAfterSend, setRunAfterSend] = useState(true);
@@ -38,7 +54,9 @@ export default function App() {
   function setLastUpload(value: DraftContent & { boot: string }) {
     setUploads(current => ({ ...current, [value.name]: value }));
   }
-  const [localLogs, setLocalLogs] = useState<LogEntry[]>([]);
+  const allLocalLogs = useSyncExternalStore(commandLogs.subscribe, commandLogs.getSnapshot);
+  const [clearedLocalId, setClearedLocalId] = useState(0);
+  const localLogs = useMemo(() => allLocalLogs.filter(row => row.sequence > clearedLocalId), [allLocalLogs, clearedLocalId]);
   const [clearedSerialId, setClearedSerialId] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);
@@ -85,8 +103,8 @@ export default function App() {
   const serialSupported = 'serial' in navigator && window.isSecureContext;
   const serialWarningLogged = useRef(false);
   const addLog = useCallback((source: LogEntry['source'], level: string, message: string) => {
-    setLocalLogs(rows => [...rows, { id: crypto.randomUUID(), time: Date.now(), source, level: logLevel(level, message), message: message.slice(0, 8192) }].slice(-500));
-  }, []);
+    commandLogs.add(source, level, message);
+  }, [commandLogs]);
   useEffect(() => {
     if (serialSupported || serialWarningLogged.current) return;
     serialWarningLogged.current = true;
@@ -97,7 +115,8 @@ export default function App() {
     downloadLua(draft.name || 'untitled.lua', draft.source);
     addLog('link', 'info', '已导出本地草稿');
   }, [draft.id, draft.name, draft.source, addLog]);
-  const simulatorLog = useCallback((level: string, message: string) => addLog('simulator', level, message), [addLog]);
+  const simulatorLog = useCallback(() => {}, []);
+  useEffect(() => simulator.onLog(log => commandLogs.add('simulator', log.level, log.message, log.runId)), [simulator, commandLogs]);
   const simulatorError = useCallback((error: SourceError | null) => {
     setSourceError(error?.line ? error : null);
     if (error) addLog('link', error.limitation ? 'warn' : 'error', error.diagnostic ?? error.message);
@@ -107,6 +126,13 @@ export default function App() {
   }))].sort((a, b) => a.time - b.time).slice(-1200), [localLogs, snapshot.logs, clearedSerialId]);
 
   useEffect(() => () => { void device.disconnect(); }, [device]);
+  useEffect(() => {
+    const detach = owner.attach();
+    const unsubscribe = device.subscribe(owner.checkIdentity);
+    return () => { unsubscribe(); detach(); simulator.dispose(); };
+  }, [owner, device, simulator]);
+  useEffect(() => { if (control.reason) addLog('link', 'info', control.reason); }, [control.reason, addLog]);
+  useEffect(() => { if (snapshot.connection === 'ready' || !control.grant) setConnectionRequested(false); }, [snapshot.connection, control.grant]);
   useEffect(() => { if (storageError) setNotice({ text: storageError, error: true }); }, [storageError]);
   useEffect(() => {
     const closeMenu = () => setMenu('');
@@ -131,15 +157,15 @@ export default function App() {
     catch (error) { addLog('link', 'warn', `设备操作已完成，列表刷新失败：${String(error)}`); }
   }
   const perform = async (action: () => Promise<unknown>, success?: string) => {
-    setBusy(true); setNotice(null); setMenu('');
+    setNotice(null); setMenu('');
     try {
-      await action();
+      await kernel.exclusive(action);
       if (success) { setNotice({ text: success, error: false }); addLog('link', 'info', success); }
       return true;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       setNotice({ text, error: true }); addLog('link', 'error', text); return false;
-    } finally { setBusy(false); }
+    }
   };
   function openFile(next: DraftContent, deviceBoot?: string) {
     openDocument(next);
@@ -223,6 +249,7 @@ export default function App() {
     <header className="global-bar">
       <a className="brand" href="https://wiki.ryzobee.com/zh/home" target="_blank" rel="noreferrer"><img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" /><span>RYZOBEE LINK</span></a>
       <div className="header-status">
+        {control.grant && <button className="ai-control" title={`当前控制：${control.grant.label}`} onClick={() => owner.revoke()}>结束 AI 控制</button>}
         {headerNotice ? <div className={`header-notice ${headerNotice.tone}`} role={headerNotice.tone === 'success' ? 'status' : 'alert'} aria-atomic="true">
           <Icon name={headerNotice.tone === 'success' ? 'check' : 'warning'} />
           <span className="notice-text" title={headerNotice.text}>{headerNotice.text}</span>
@@ -239,7 +266,7 @@ export default function App() {
     </header>
     <div className="workspace-grid">
       <aside className="left-column">
-        <SimulatorPanel toggleRef={simulatorButton} hasDocument={!!draft.id} source={draft.source} sourceName={draft.name} onLog={simulatorLog} onError={simulatorError} onShowLogs={() => setRevealLinkLogs(value => value + 1)} />
+        <SimulatorPanel session={simulator} toggleRef={simulatorButton} hasDocument={!!draft.id} source={draft.source} sourceName={draft.name} onLog={simulatorLog} onError={simulatorError} onShowLogs={() => setRevealLinkLogs(value => value + 1)} />
         <section className="panel files-panel" aria-label="设备文件">
           <div className="panel-heading"><h2><Icon name="folder-opened" />设备文件</h2>{ready && <span className="muted">{snapshot.files.some(file => file.name === selected) ? 1 : 0} / {snapshot.files.length} 项</span>}</div>
           <div className="file-list" onScroll={event => { if (event.currentTarget.scrollTop !== menuScrollPosition.current.list) setMenu(''); }}>
@@ -275,12 +302,21 @@ export default function App() {
             <button ref={helpButton} className="icon-button" aria-label="快捷键" disabled={busy} title={`快捷键（${shortcutLabel('help')}）`} aria-keyshortcuts={shortcutAria('help')} onClick={() => { setMenu(''); setShowShortcuts(true); }}><Icon name="keyboard" /></button>
             <span className={`editor-status ${knownError ? knownError.limitation ? 'warning' : 'error' : ''}`} role="status" data-save-state={saved ? 'saved' : 'saving'}>{!draft.id ? '' : knownError ? `第 ${knownError.line} 行 · ${knownError.limitation ? '模拟器限制' : '运行错误'}` : synced ? '已写入设备 · 校验通过' : ''}</span>
           </div>
-          {draft.id ? <div className="editor-document" id="lua-document" role="tabpanel" aria-labelledby={'file-tab-' + draft.id}><LuaEditor key={draft.id} source={draft.source} onChange={source => setDraft(current => ({ ...current, source }))} error={sourceError} /></div> : <div className="editor-empty"><Icon name="files" /><button onClick={createDocument}>新建 Lua 文件</button><button onClick={() => fileInput.current?.click()}>打开本地文件</button></div>}
+          {draft.id ? <div className="editor-document" id="lua-document" role="tabpanel" aria-labelledby={'file-tab-' + draft.id}><LuaEditor key={`${draft.id}:${editorRevisions[draft.id] ?? 0}`} source={draft.source} onChange={source => setDraft(current => ({ ...current, source }))} error={sourceError} /></div> : <div className="editor-empty"><Icon name="files" /><button onClick={createDocument}>新建 Lua 文件</button><button onClick={() => fileInput.current?.click()}>打开本地文件</button></div>}
         </section>
-        <LogPanel logs={logs} revealLink={revealLinkLogs} onClear={() => { setLocalLogs([]); setClearedSerialId(snapshot.logs.at(-1)?.id ?? 0); }} />
+        <LogPanel logs={logs} revealLink={revealLinkLogs} onClear={() => { setClearedLocalId(allLocalLogs.at(-1)?.sequence ?? 0); setClearedSerialId(snapshot.logs.at(-1)?.id ?? 0); }} />
       </div>
     </div>
     {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
+    {control.pending && !confirm && !showShortcuts && <Modal title="允许 AI 控制本次会话？" onClose={() => owner.revoke('已拒绝 AI 控制')}>
+      <p>{control.pending.label}</p>
+      <p>可读写当前草稿、操作模拟器，以及上传和运行设备脚本。关闭或重新加载本页面、设备断开或重启后需重新授权。</p>
+      <div className="modal-actions"><button onClick={() => owner.revoke('已拒绝 AI 控制')}>拒绝</button><button className="primary" onClick={() => owner.approve()}>允许本次控制</button></div>
+    </Modal>}
+    {connectionRequested && control.grant && !confirm && !showShortcuts && <Modal title="AI 请求连接设备" busy={busy} onClose={() => setConnectionRequested(false)}>
+      <p>选择 Ryzobee 串口后，AI 才能继续设备操作。</p>
+      <div className="modal-actions"><button disabled={busy} onClick={() => setConnectionRequested(false)}>取消</button><button className="primary" disabled={busy || !serialSupported} onClick={() => void perform(async () => { await device.connectFromGesture(); setConnectionRequested(false); })}>连接设备</button></div>
+    </Modal>}
     {confirm && <Modal busy={busy} title={confirm.kind === 'delete' ? '删除设备中的文件？' : confirm.exists ? '覆盖设备中的脚本？' : '发送脚本到设备'} onClose={() => setConfirm(null)}>
       <div className="modal-file"><Icon name="file-code" />{confirm.kind === 'delete' ? confirm.name : confirm.draft.name}</div>
       {confirm.kind === 'delete' ? <p>仅删除设备文件，本地草稿保留。</p> : <><p>{sizeLabel(byteCount(confirm.draft.source))} · RootMaker</p><label className="checkbox"><input type="checkbox" checked={runAfterSend} onChange={event => setRunAfterSend(event.target.checked)} />发送后自动运行</label></>}
