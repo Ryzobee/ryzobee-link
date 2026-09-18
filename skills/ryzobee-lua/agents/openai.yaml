@@ -1,6 +1,6 @@
 interface:
   display_name: "RyzoBee Lua"
-  short_description: "依据固件源码编写 Lua 脚本，校验头部摘要、UI、外设接口与运行限制"
-  default_prompt: "使用 $ryzobee-lua，依据当前固件接口完成脚本，并检查头部摘要、语法和相关行为。"
+  short_description: "先查官方固件文档，再按目标版本编写和审查 Lua 脚本、接口与运行行为"
+  default_prompt: "使用 $ryzobee-lua，先查官方固件 docs 中目标版本的接口说明，再完成 Lua 脚本并说明验证范围。"
 policy:
   allow_implicit_invocation: true
