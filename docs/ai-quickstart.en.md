@@ -12,7 +12,7 @@ Follow the [skill installation instructions](../skills/ryzobee-link/README.md#en
 
 Your AI assistant needs browser automation. Try starting with:
 
-> Use $ryzobee-link to open https://geekheart.github.io/ryzobee-link/, run the built-in counter, click its button twice, and check the display and logs. Do not connect to or write to a device yet.
+> Use $ryzobee-link to open <https://geekheart.github.io/ryzobee-link/>, run the built-in counter, click its button twice, and check the display and logs. Do not connect to or write to a device yet.
 
 This is the fork used for this walkthrough. Replace it with the deployment you intend to operate. Installing the skill alone does not give an assistant browser access.
 

@@ -12,7 +12,7 @@
 
 你的 AI 助手需要浏览器操作能力。可以这样开始：
 
-> 使用 $ryzobee-link 打开 https://geekheart.github.io/ryzobee-link/，运行内置计数器，点击两次按钮，检查画面和日志。暂时不要连接或写入设备。
+> 使用 $ryzobee-link 打开 <https://geekheart.github.io/ryzobee-link/>，运行内置计数器，点击两次按钮，检查画面和日志。暂时不要连接或写入设备。
 
 这是本次 fork 体验地址；正式使用时换成你要操作的部署地址。如果助手不能调用浏览器，单独安装 skill 不能补上浏览器能力。
 

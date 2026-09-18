@@ -10,7 +10,7 @@ This standalone skill teaches a browser-capable AI assistant to control Ryzobee 
 
 Copy this **entire directory**, including `SKILL.md`, `references/` and `agents/`, to your assistant's skill directory. For Codex, the default location is `~/.codex/skills/ryzobee-link/`. Start a new task or reload skills, then invoke:
 
-> Use $ryzobee-link on https://ryzobee.github.io/ryzobee-link/ to open my Lua file and run its UI simulation.
+> Use $ryzobee-link on <https://ryzobee.github.io/ryzobee-link/> to open my Lua file and run its UI simulation.
 
 Confirm that the target site has deployed V1.1.0 or a compatible MCP-capable release. To test a fork, substitute its Pages URL. Your assistant needs browser automation (DOM controls or page JavaScript); an HTTP-only tool cannot control a static page. Link asks for session permission on the user page. Device access additionally requires desktop Chrome/Edge, a connected compatible board and the browser's serial chooser. No model API key, server, firmware checkout, or mandatory test harness is required to use this skill. Writing Lua may benefit from installing the separate Lua skill too.
 
@@ -22,7 +22,7 @@ Confirm that the target site has deployed V1.1.0 or a compatible MCP-capable rel
 
 复制**整个目录**到 AI 工具的 skill 目录，包含 `SKILL.md`、`references/` 和 `agents/`。Codex 默认位置为 `~/.codex/skills/ryzobee-link/`。开启新任务或重新加载后，例如：
 
-> 使用 $ryzobee-link 打开 https://ryzobee.github.io/ryzobee-link/，把我的 Lua 文件放进去并运行 UI 仿真。
+> 使用 $ryzobee-link 打开 <https://ryzobee.github.io/ryzobee-link/>，把我的 Lua 文件放进去并运行 UI 仿真。
 
 先确认目标站点已经发布 V1.1.0 或兼容的 MCP 版本；使用 fork 时换成对应 Pages 地址。AI 需要浏览器 DOM 或页面 JavaScript 工具，只有 HTTP 请求能力不够。用户页会请求本次控制授权；操作设备还需要兼容固件、桌面 Chrome/Edge 和用户选择串口。不需要模型 API key、服务端、固件源码或强制测试工具。写 Lua 时可另外安装 `ryzobee-lua`。
 
