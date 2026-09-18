@@ -159,7 +159,7 @@ docs/             架构与实际验收记录
 - 保留 `sw.js`、模拟器、字体及 Worker 的目录结构。`.wasm` 应使用 `application/wasm`，JS 使用正确的 JavaScript MIME 类型。
 - 已配置相对资源路径，支持 `/ryzobee-link/` 等子目录部署；目录 URL 应重定向至带尾斜杠的形式。
 - 建议为 `index.html` 和 `sw.js` 配置 `Cache-Control: no-cache`，避免浏览器无法发现新版本。
-- GitHub Pages 需要另行配置构建/发布工作流并发布 `dist/`；仅创建代码仓库不会自动上线网站。
+- 已提供 [GitHub Pages 发布工作流](.github/workflows/pages.yml)：推送与包版本一致的标签（例如 `V1.0.0`）时构建并发布 `dist/`，普通提交和 PR 不发布。每个仓库（包括 fork）须先将 Pages 来源设为 **GitHub Actions**，并允许版本标签部署到 `github-pages` 环境。详见[部署与发版指南](docs/deployment.md)和 [V1.0.0 功能清单](docs/releases/V1.0.0.md)。fork 的标签、Release、Pages 设置不会随 PR 自动同步到上游。
 
 ## 贡献与协议
 
