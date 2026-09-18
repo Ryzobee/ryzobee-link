@@ -84,7 +84,7 @@ Preview at **http://127.0.0.1:4180**. Publish the **contents of `dist/`** to a s
 - The production app works offline only after its initial complete load and Service Worker cache installation. Close old application tabs and reopen to activate an update. Development mode does not install this cache.
 - Opening `index.html` directly using `file://` is not supported.
 
-For GitHub Pages, build the application and publish `dist/` with your Pages deployment workflow or artifact uploader. Repository creation alone does not publish the website.
+For GitHub Pages, the [release workflow](.github/workflows/pages.yml) builds and publishes `dist/` when a matching version tag such as `V1.0.0` is pushed. Branch pushes and PRs do not deploy. Each repository (including forks) must enable Pages with **GitHub Actions** and allow version tags in its `github-pages` environment first. See the [deployment and release guide](docs/deployment.md) and [V1.0.0 feature list](docs/releases/V1.0.0.md). A fork's tags, releases and Pages settings are not copied to upstream by a PR.
 
 ## Shortcuts and local data
 
