@@ -74,7 +74,7 @@ export class BrowserMcpServer {
     let peer = this.peers.get(clientId);
     if (peer) return peer;
     if (this.peers.size >= 16) throw new McpError(ErrorCode.InvalidRequest, '本页面 MCP 客户端已达上限，请核对设备状态后重新加载');
-    const server = new Server({ name: 'ryzobee-link', version: '1.1.0' }, { capabilities: { tools: {} },
+    const server = new Server({ name: 'ryzobee-link', version: '1.0.1' }, { capabilities: { tools: {} },
       instructions: 'Use link.request_control and wait for the human. Running device files never requires simulation. Query uncertain operations via link.request_result with a fresh RPC id.' });
     const transport = new PageTransport();
     peer = { server, transport, ready: false, initialized: false, initializing: false, ids: new Set() };

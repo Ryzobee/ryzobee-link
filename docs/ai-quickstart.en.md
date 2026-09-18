@@ -4,7 +4,7 @@
 
 Describe your task, and let AI work with files, the simulator and the device while you watch the code, display and logs in the familiar Link workspace. **Everyday use does not require writing JSON or configuring a model API key in Link.** Your AI assistant provides the model and browser tools.
 
-This guide applies to V1.1.0 and later compatible releases. The images below show real Chrome pages running V1.1.0 and its built-in UI example. No physical device was connected.
+This guide applies to the official V1.0.1 release, the fork's V1.1.0 preview, and later compatible releases. The images below show real Chrome pages running the fork's V1.1.0 and its built-in UI example. No physical device was connected.
 
 ## 1. Install the skill and describe your task
 

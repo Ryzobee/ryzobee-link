@@ -158,7 +158,7 @@ export class AgentClient implements AgentInterface {
       }
       if (!this.negotiated.has(sessionId)) {
         const response = await this.request(sessionId, { jsonrpc: '2.0', id: crypto.randomUUID(), method: 'initialize', params: {
-          protocolVersion: MCP_VERSION, capabilities: {}, clientInfo: { name: 'ryzobee-link-agent', version: '1.0.0' },
+          protocolVersion: MCP_VERSION, capabilities: {}, clientInfo: { name: 'ryzobee-link-agent', version: '1.0.1' },
         } });
         if (!response) throw new Error('未收到 MCP 初始化响应。');
         if ('error' in response) throw new McpResponseError(response);

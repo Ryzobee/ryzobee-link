@@ -61,7 +61,7 @@ gh release create V1.0.0 --repo geekheart/ryzobee-link --verify-tag \
 
 - 首次访问需要联网，所有资源完整缓存后才支持离线。生产版会检查 Service Worker 更新；新版本等待旧 Link 标签页全部关闭后激活，不会中途替换运行中的编辑器。
 - 暂不强制刷新或清空站点数据。清空站点数据会删除 IndexedDB 草稿，重要文件先导出；localhost、fork 和组织站点的草稿及串口授权相互独立，不会迁移。
-- V1.1.0 起静态缓存按 Service Worker scope 区分，只清理自己路径下的旧缓存；AI 页带 query 的离线访问也回到 AI 页。旧版全局前缀缓存不主动清除。草稿数据库仍为 origin 级共享，多个不同路径部署并不等于独立工作区。
+- 组织 V1.0.1（fork 预览版 V1.1.0）起静态缓存按 Service Worker scope 区分，只清理自己路径下的旧缓存；AI 页带 query 的离线访问也回到 AI 页。旧版全局前缀缓存不主动清除。草稿数据库仍为 origin 级共享，多个不同路径部署并不等于独立工作区。
 - AI 控制仅适用于可信的同源页面。GitHub Pages 同一用户名下的不同仓库可共享 origin；路径化通道名不是恶意同源脚本之间的权限隔离。
 - GitHub Pages 只托管静态文件，不接收或转发 Lua、串口、API key。草稿留在浏览器；串口由支持 Web Serial 的桌面浏览器访问本机设备。网站访问本身仍受 GitHub 的访问日志和隐私政策约束。
 - 支持 HTTPS 的 Pages 不能消除浏览器兼容性、USB 驱动、串口占用和操作系统权限限制。
@@ -75,7 +75,7 @@ For each repository, enable Actions, select **Settings → Pages → GitHub Acti
 
 Use annotated tags and a release note file as shown above. Wait for one deployment before pushing the next version; never force-move a published tag. Retry failed runs instead. GitHub Releases are optional documentation; tag push is the deployment trigger.
 
-First load requires the network; offline use requires a completed cache installation. Close all old Link tabs and reopen for updates. Drafts are origin-local: localhost, a fork site and the organization site do not share them. Export important Lua files instead of clearing site data. V1.1.0 scopes static-cache cleanup by deployment path; browser drafts still share an origin-level database. Deploy `agent.html` with the full build. AI commands trust the entire origin, not individual paths. Browser/driver/firmware requirements still apply; UI simulation does not prove hardware correctness.
+First load requires the network; offline use requires a completed cache installation. Close all old Link tabs and reopen for updates. Drafts are origin-local: localhost, a fork site and the organization site do not share them. Export important Lua files instead of clearing site data. Official V1.0.1 (fork preview V1.1.0) scopes static-cache cleanup by deployment path; browser drafts still share an origin-level database. Deploy `agent.html` with the full build. AI commands trust the entire origin, not individual paths. Browser/driver/firmware requirements still apply; UI simulation does not prove hardware correctness.
 
 ## 官方参考 / References
 
