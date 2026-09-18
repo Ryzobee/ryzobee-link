@@ -1,5 +1,7 @@
 # Browser MCP interface / 浏览器 MCP 接口
 
+New here? Start with the [illustrated walkthrough](ai-quickstart.en.md) / 首次使用请先看[图文上手指南](ai-quickstart.md)，包括真实授权、命令和仿真截图。This page is the protocol reference, not a manual JSON entry requirement for everyday users.
+
 Link remains a static frontend. The visible user page owns the workspace, simulator and serial port. The official `@modelcontextprotocol/sdk` implements MCP **2025-11-25** JSON-RPC, lifecycle and tool messages, over a custom browser transport. There is no HTTP listener, stdio process or model API key. A normal HTTP MCP client cannot use this static URL without a browser transport adapter.
 
 Link 仍是纯前端。用户页面统一持有工作区、模拟器和串口；AI 与鼠标/键盘调用相同服务，不另开串口。消息使用 MCP 标准，不自定义控制信封；浏览器传输适配仅负责路由。支持固定版本 2025-11-25，不声明支持新版本的无握手协议或实验性 Tasks。
@@ -7,7 +9,7 @@ Link 仍是纯前端。用户页面统一持有工作区、模拟器和串口；
 ## Two entry points / 两个入口
 
 1. User page / 用户页：`window.ryzobeeLink.request(message)` accepts raw MCP JSON-RPC and returns its response (notifications return `undefined`). Direct callers perform `initialize` → `notifications/initialized` themselves.
-2. Companion page / AI 页：open `agent.html` in the **same deployment directory, browser profile and storage partition**. Discover, select a session, request control, then fill “MCP JSON-RPC” and click “发送 MCP 请求”. The page handles initialization. JavaScript callers may use `window.ryzobeeLinkAgent.discover()`, `connect(sessionId)` and `request(sessionId,message)`. The regular UI has no link to this page.
+2. Companion page / AI 页：open `agent.html` in the **same deployment directory, browser profile and storage partition**. Discover, select a session, request control, then fill “MCP JSON-RPC” and click “发送 MCP 请求”. The page buttons handle initialization. JavaScript callers use `discover()`, select the correct session, then **await `window.ryzobeeLinkAgent.connect(sessionId)` before `request(sessionId,message)`**; `request()` itself does not initialize. The regular UI has no link to this page.
 
 The human approves control on the main page and can end it from the existing top bar. No grant is persisted. Closing/reloading the main page, disconnecting an already bound board or observing a different boot invalidates it. A grant created without hardware can bind to the first successful connection. `device.connect` requests a main-page prompt; only its real click invokes `requestPort()`.
 
@@ -43,11 +45,13 @@ All responses use `{jsonrpc:"2.0",id,result}` or `{jsonrpc:"2.0",id,error:{code,
 Domain status meanings / 业务状态含义：
 
 - `completed`: operation returned; inspect its data (a file save does not mean execution).
-- `accepted`: asynchronous run/stop/connect accepted. Poll `simulator.status` or `device.jobs`; inspect logs and frames.
+- `accepted`: `simulator.run`, `device.run`, `device.stop` or `device.connect` accepted. Poll `simulator.status` for simulation, `device.jobs` for device jobs, or `link.status`/`device.info` after the user's serial connection. Inspect logs and frames. `simulator.stop` instead waits for stopping and returns `completed` with data `"idle"`.
 - `rejected`: explicit error, such as `NEEDS_APPROVAL`, `NEEDS_CONNECTION`, `SOURCE_CHANGED` or `BUSY`.
 - `unknown`: a device operation has an uncertain outcome. Browser transport timeouts are local exceptions, not fabricated server replies. Query the original operation and actual state; never blindly resend a write/run.
 
 MCP request IDs must **not** be reused within a client connection. Duplicate requests are rejected without re-executing. To recover a lost result, send a **new** RPC request calling `link.request_result` with `arguments:{requestId:<original id>}`. The page retains at most 1024 operation fingerprints and 64 completed operation replies; evicted results never cause execution. Reloading clears records and changes the page session; inspect actual device state before resuming. IDs are not authorization credentials.
+
+The companion page times out locally after 15 seconds; this does not cancel a pending operation. Result recovery covers workspace/simulator/device/log operations and `link.status`, not `link.request_control`, `link.control_status` or `link.request_result` itself. `NOT_SEEN` or an evicted result is not proof that a device operation never happened. Inspect the actual state rather than replaying a mutation. AI 页 15 秒超时不自动取消；查无记录不是重新写入/运行的许可。源码与设备 hash 的完整传递见[设备工作流](ai-quickstart.md#5-需要上板时再连接与发送)。
 
 ## Browser transport binding / 浏览器传输约定
 

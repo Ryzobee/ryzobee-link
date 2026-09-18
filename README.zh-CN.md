@@ -47,6 +47,10 @@ npm run dev
 
 ## 浏览器 MCP 接口
 
+**[图文上手：让 AI 操作 Link](docs/ai-quickstart.md)** — 安装 skill、允许控制、查看真实仿真结果，再按需连接设备。日常操作由 AI 完成，不需要用户手写 JSON。
+
+![AI 通过 MCP 点击两次后的实际模拟画面、源码与日志](docs/screenshots/mcp-simulator.jpg)
+
 Link 使用官方 MCP TypeScript SDK **1.30.0**，固定协议版本 **2025-11-25**，通过标准 JSON-RPC 2.0 的 `initialize`、`tools/list` 和 `tools/call` 通信。外部 AI 可调用用户页的 `window.ryzobeeLink.request(message)`，或在同一部署、同一浏览器配置中打开 `agent.html`：先调用 `window.ryzobeeLinkAgent.connect(sessionId)` 初始化，再通过 `request(sessionId, message)` 发送原始 MCP 消息。独立页面也提供会话选择、授权申请和 JSON 输入。详见[MCP 指南](docs/agent-commands.md)。
 
 用户在主页面允许或结束控制，授权不持久化。工具与界面共享工作区、模拟器和串口；上传仅保存文件，运行是独立操作。每次 JSON-RPC 请求使用新 id；超时后用新查询 id 调用 `link.request_result` 查询原 id，并检查实际状态，不重放写入或运行。Link 仍是纯前端：采用自定义浏览器传输，无 HTTP MCP 端点、模型 API key 或后台服务。
@@ -179,9 +183,7 @@ docs/             架构与实际验收记录
 
 提交与 PR 标题遵循 `emoji 前缀(范围): 简介`，固定组合与例子见 [CONTRIBUTING.md](CONTRIBUTING.md)。`main` 禁止直接推送，只能通过 PR 更新。
 
-## 验证
-
-### AI 协作技能
+## AI 协作技能
 
 两个技能分开安装：复制各自的**完整目录**到 AI 工具的技能目录，Codex 默认为 `~/.codex/skills/`。
 
@@ -189,6 +191,8 @@ docs/             架构与实际验收记录
 - [RyzoBee Lua skill](skills/ryzobee-lua/README.md#简体中文)：引导 AI 读取[官方固件 docs](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs)，按目标版本编写 Lua。它独立安装；仅查文档无需本地固件仓库。
 
 安装技能不会给 Link 添加 AI 后端、模型 API key 要求或强制上传验证步骤。
+
+## 验证
 
 ```sh
 npm run typecheck

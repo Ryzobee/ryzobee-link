@@ -48,6 +48,10 @@ Double-click a device file to read it into the editor; its `…` menu also suppo
 
 ## Browser MCP interface
 
+**[Illustrated guide: let AI operate Link](docs/ai-quickstart.en.md)** — install the skill, approve control, inspect a real simulation, then connect hardware only when needed. Your assistant sends commands; everyday use does not require you to write JSON.
+
+![The real simulator, source and logs after two AI-driven MCP pointer interactions](docs/screenshots/mcp-simulator.jpg)
+
 Link uses the official MCP TypeScript SDK **1.30.0**, with protocol **2025-11-25** and standard JSON-RPC 2.0 `initialize`, `tools/list` and `tools/call` messages. An external assistant can call `window.ryzobeeLink.request(message)` on the user page, or use `agent.html` in the same deployment and browser profile. Its `window.ryzobeeLinkAgent.connect(sessionId)` initializes MCP; `request(sessionId, message)` sends raw MCP messages. The companion page also provides session selection, authorization and a JSON textarea. See the [MCP guide](docs/agent-commands.md).
 
 The user grants or ends control on the main page; no permission is persisted. Tools share the application's workspace, simulator and serial connection. Upload saves only; running is separate. Every JSON-RPC request needs a new id, including after a timeout: query the original id through `link.request_result` using a new query id, and inspect current state. Never replay a write or run. Link remains a static app: MCP uses a custom browser transport, with no HTTP MCP endpoint, model API key or background server.
@@ -117,9 +121,7 @@ Drafts are stored in this browser's IndexedDB, not uploaded to a server. Clearin
 - The simulator targets **UI**, not electrical behavior, ESP32 timing, DMA, wireless or peripheral emulation. Unsupported peripheral use is explained in the Link log; raw diagnostics stay out of the simulated screen.
 - This tool transfers Lua scripts; it does **not** flash/erase complete device firmware or provide an AI agent.
 
-## Development
-
-### AI assistant skills
+## AI assistant skills
 
 Install these independent skills by copying each complete directory into your assistant's skill folder (Codex defaults to `~/.codex/skills/`):
 
@@ -127,6 +129,8 @@ Install these independent skills by copying each complete directory into your as
 - [RyzoBee Lua](skills/ryzobee-lua/README.md#english) guides Lua authoring against the [official firmware documentation](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs) for the target version. It is installed separately; reading the documentation does not require a firmware checkout.
 
 Neither installation adds an AI backend, API key requirement or mandatory upload-validation step to Link.
+
+## Development
 
 ```sh
 npm run typecheck
