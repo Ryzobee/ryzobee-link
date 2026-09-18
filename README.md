@@ -6,7 +6,7 @@
 <p align="center"><strong>Your browser. Your Lua. Your hardware.</strong></p>
 <p align="center">Edit · Simulate · Send · Inspect</p>
 <p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></p>
-<p align="center"><a href="#quick-start">Quick start</a> · <a href="#screenshots">Screenshots</a> · <a href="#deploy-as-a-static-website">Deploy</a> · <a href="skills/ryzobee-lua/README.md#english">AI skill</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="#screenshots">Screenshots</a> · <a href="#deploy-as-a-static-website">Deploy</a> · <a href="#ai-assistant-skills">AI skills</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
 <p align="center"><a href="LICENSE">MIT licensed</a> · Static web app · Web Serial · Lua + LVGL + WebAssembly</p>
 
 A lightweight Lua workbench for **Ryzobee RootMaker**. Edit scripts, interact with a simulated screen, transfer files over USB serial, and inspect logs—without an application server or desktop installation.
@@ -23,6 +23,7 @@ A lightweight Lua workbench for **Ryzobee RootMaker**. Edit scripts, interact wi
 - **Web Serial device access:** browse, read, upload, run and delete supported device scripts, with automatic file/capacity updates.
 - **Direct device execution:** sending a script does not require simulation, approval tokens or a cloud service. SHA-256 checks transfer integrity, not permission.
 - **Useful logs:** Device / Simulator / Link source tabs, level filters and pause/clear controls.
+- **Browser AI commands:** an external assistant can share the editor, simulator and device session after the user grants control on the main page.
 - **Offline after initial loading:** production assets, fonts, editor workers and Wasm are bundled and cached locally.
 
 ## Quick start
@@ -44,6 +45,14 @@ Open **http://127.0.0.1:5180**. The development port is fixed; a busy port cause
 4. Click Send, review the destination and confirm. Run after sending is checked by default; uncheck it to upload only.
 
 Double-click a device file to read it into the editor; its `…` menu also supports download, run and delete. Overwrite and deletion require confirmation. Stop a running device script before device file reads/writes if required by the firmware.
+
+## Browser command interface
+
+An external assistant with browser tools can use `window.ryzobeeLink` on the user page, or open `agent.html` in the same deployment and browser profile. The companion page provides session selection, an authorization request, a plain JSON input and results. The user grants or ends control on the main page; no permission is persisted. See the [command guide](docs/agent-commands.md).
+
+Commands share the application's workspace, simulator and serial connection. Upload saves only; running is a separate command and does not require simulation. If a result is unknown, query the original request ID and current state before continuing. Link remains a static app without a model API key or background server.
+
+Only trusted code should share this origin. Session IDs and client IDs do not authenticate against malicious same-origin scripts; separate GitHub Pages repositories under the same `owner.github.io` hostname share that origin. Deployment paths separate channels, not security boundaries.
 
 ## Screenshots
 
@@ -80,7 +89,7 @@ Preview at **http://127.0.0.1:4180**. Publish the **contents of `dist/`** to a s
 - Serve over **HTTPS**; localhost is also accepted for local development. Web Serial and Service Workers need a secure context and browser support.
 - Preserve the generated directory structure, including `sw.js`, fonts, workers and `simulator/`. Serve `.wasm` as `application/wasm` and JavaScript with a valid JavaScript MIME type.
 - Vite uses relative asset paths (`base: './'`), allowing deployment under a subdirectory such as `/ryzobee-link/`. Redirect a directory URL to its trailing-slash form.
-- Avoid long-lived HTTP caching for `index.html` and `sw.js` (use `Cache-Control: no-cache`) so browsers can discover updates.
+- Avoid long-lived HTTP caching for `index.html`, `agent.html` and `sw.js` (use `Cache-Control: no-cache`) so browsers can discover updates.
 - The production app works offline only after its initial complete load and Service Worker cache installation. Close old application tabs and reopen to activate an update. Development mode does not install this cache.
 - Opening `index.html` directly using `file://` is not supported.
 
@@ -110,9 +119,14 @@ Drafts are stored in this browser's IndexedDB, not uploaded to a server. Clearin
 
 ## Development
 
-### AI coding skill
+### AI assistant skills
 
-The standalone [RyzoBee Lua skill](skills/ryzobee-lua/README.md#english) guides an AI assistant to the [official firmware documentation](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs) before writing scripts. APIs, examples and validation tools are looked up for the target firmware version rather than copied into the skill. No local firmware checkout is required just to read the documentation. Copy the complete skill folder; installation adds neither an AI backend nor an upload-validation requirement to Link.
+Install these independent skills by copying each complete directory into your assistant's skill folder (Codex defaults to `~/.codex/skills/`):
+
+- [Ryzobee Link](skills/ryzobee-link/README.md#english) teaches a browser-capable assistant to operate Link's command interface, including drafts, simulation, device scripts and logs. Use your fork's Pages URL when operating a fork.
+- [RyzoBee Lua](skills/ryzobee-lua/README.md#english) guides Lua authoring against the [official firmware documentation](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs) for the target version. It is installed separately; reading the documentation does not require a firmware checkout.
+
+Neither installation adds an AI backend, API key requirement or mandatory upload-validation step to Link.
 
 ```sh
 npm run typecheck
@@ -126,11 +140,14 @@ For Wasm rebuild prerequisites, firmware pinning and dedicated simulator tests, 
 
 ```text
 src/components/   Editor, simulator, logs and dialogs
+src/commands/     Shared command kernel, session grants, request records and logs
+src/agent/        Independent JSON command page and BroadcastChannel client
 src/device/       Serial session, protocol, file operations and ANSI logs
 src/simulator/    Worker lifecycle and Wasm messages
 src/workspace/    Drafts, templates, shortcuts and workspace state
 simulator/        C browser adapter, build configuration and firmware lock
 public/           Self-hosted runtime, fonts, brand assets and license texts
+skills/           Separate Link operation and Lua authoring skills
 tests/            Browser workflows
 docs/             Design and validation records
 ```

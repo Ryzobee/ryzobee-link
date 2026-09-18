@@ -6,7 +6,7 @@
 <p align="center"><strong>从一段 Lua，到你手中的设备。</strong></p>
 <p align="center">编写 · 模拟 · 发送 · 调试</p>
 <p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></p>
-<p align="center"><a href="#开始">快速开始</a> · <a href="#界面预览">界面预览</a> · <a href="#静态部署">部署</a> · <a href="skills/ryzobee-lua/README.md#简体中文">AI 技能</a> · <a href="CONTRIBUTING.md">参与贡献</a></p>
+<p align="center"><a href="#开始">快速开始</a> · <a href="#界面预览">界面预览</a> · <a href="#静态部署">部署</a> · <a href="#ai-协作技能">AI 技能</a> · <a href="CONTRIBUTING.md">参与贡献</a></p>
 <p align="center"><a href="LICENSE">MIT 开源</a> · 纯静态网页 · Web Serial · Lua + LVGL + WebAssembly</p>
 
 面向 **Ryzobee RootMaker** 的轻量 Lua 工作台。在浏览器中编辑脚本、交互式模拟 UI、通过 USB 串口传输文件并查看日志，无需业务后端或桌面安装包。
@@ -22,6 +22,7 @@
 - **真实 UI 交互**：Lua + LVGL 的 WebAssembly 运行时，点击屏幕即可得到反馈。
 - **串口文件管理**：读取、发送、运行和删除脚本，文件列表与容量自动更新。
 - **直接发送设备**：不要求先通过模拟，不需要审核令牌。
+- **浏览器 AI 命令**：外部助手经用户在主页面授权后，共享编辑器、模拟器和设备会话。
 - **离线可用**：生产版首次完成资源缓存后可离线打开。
 
 ## 开始
@@ -43,6 +44,14 @@ npm run dev
 设备文件双击读取到编辑器，或从文件的 `…` 菜单读取、下载、运行及删除。「打开」只在顶部保留；没有手动刷新入口，连接成功、写入和删除后自动更新文件列表和容量。
 
 **发送到设备独立于模拟器**，不需要仿真通过、审核或令牌。SHA-256 只校验文件版本和传输完整性。覆盖与删除须明确确认；文件保护状态来自设备。没有新增自启设置。
+
+## 浏览器命令接口
+
+具备浏览器工具的外部 AI 可直接调用用户页的 `window.ryzobeeLink`，或在同一部署、同一浏览器配置中打开 `agent.html`。独立命令页提供会话选择、授权申请、普通 JSON 输入和结果；用户在主页面允许或结束控制，授权不持久化。使用方法见[命令指南](docs/agent-commands.md)。
+
+命令与界面共享工作区、模拟器和串口。上传仅保存文件，运行是独立命令，不以仿真通过为前提；结果未知时先查询原 requestId 和当前状态。Link 仍是纯前端，无需模型 API key 或后台服务。
+
+整个 origin 都必须可信：会话和客户端 ID 无法抵御同源恶意脚本；同一 `owner.github.io` 域名下的不同 GitHub Pages 仓库仍然同源。部署路径只区分通信频道，不构成安全隔离。
 
 ## 界面预览
 
@@ -138,11 +147,14 @@ npm run preview
 
 ```text
 src/components/   编辑器、模拟屏幕、日志和确认框
+src/commands/     共享命令调度、会话授权、请求记录和日志
+src/agent/        独立 JSON 命令页与 BroadcastChannel 客户端
 src/device/       串口会话、协议分帧、文件操作、ANSI 日志
 src/simulator/    Worker 生命周期与 Wasm 通信
 src/workspace/    本地草稿、示例和日志模型
 simulator/        C 浏览器适配、CMake、固件版本锁
 public/simulator/ 预构建运行时与授权文本
+skills/           分开安装的 Link 操作技能与 Lua 编写技能
 tests/            少量关键浏览器闭环测试
 docs/             架构与实际验收记录
 ```
@@ -158,7 +170,7 @@ docs/             架构与实际验收记录
 - 正式站点必须使用 HTTPS；本地 localhost / 127.0.0.1 可用于开发。Web Serial 需要桌面 Chrome / Edge 支持。
 - 保留 `sw.js`、模拟器、字体及 Worker 的目录结构。`.wasm` 应使用 `application/wasm`，JS 使用正确的 JavaScript MIME 类型。
 - 已配置相对资源路径，支持 `/ryzobee-link/` 等子目录部署；目录 URL 应重定向至带尾斜杠的形式。
-- 建议为 `index.html` 和 `sw.js` 配置 `Cache-Control: no-cache`，避免浏览器无法发现新版本。
+- 建议为 `index.html`、`agent.html` 和 `sw.js` 配置 `Cache-Control: no-cache`，避免浏览器无法发现新版本。
 - 已提供 [GitHub Pages 发布工作流](.github/workflows/pages.yml)：推送与包版本一致的标签（例如 `V1.0.0`）时构建并发布 `dist/`，普通提交和 PR 不发布。每个仓库（包括 fork）须先将 Pages 来源设为 **GitHub Actions**，并允许版本标签部署到 `github-pages` 环境。详见[部署与发版指南](docs/deployment.md)和 [V1.0.0 功能清单](docs/releases/V1.0.0.md)。fork 的标签、Release、Pages 设置不会随 PR 自动同步到上游。
 
 ## 贡献与协议
@@ -169,9 +181,14 @@ docs/             架构与实际验收记录
 
 ## 验证
 
-### AI 编程技能
+### AI 协作技能
 
-仓库提供独立的 [RyzoBee Lua skill](skills/ryzobee-lua/README.md#简体中文)，引导 AI 先读取[官方固件 docs](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs)，再按目标版本编写脚本。接口、示例及验证工具从对应版本查找，不在 skill 内维护副本；仅查文档不要求准备本地固件。请复制整个技能文件夹；安装不会给 Link 添加 AI 后端，也不会增加发送设备的验证门槛。
+两个技能分开安装：复制各自的**完整目录**到 AI 工具的技能目录，Codex 默认为 `~/.codex/skills/`。
+
+- [Ryzobee Link skill](skills/ryzobee-link/README.md#简体中文)：引导具备浏览器工具的 AI 操作 Link 命令接口，管理草稿、运行仿真、传输设备脚本和查看日志。使用 fork 时换成对应的 Pages 地址。
+- [RyzoBee Lua skill](skills/ryzobee-lua/README.md#简体中文)：引导 AI 读取[官方固件 docs](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs)，按目标版本编写 Lua。它独立安装；仅查文档无需本地固件仓库。
+
+安装技能不会给 Link 添加 AI 后端、模型 API key 要求或强制上传验证步骤。
 
 ```sh
 npm run typecheck

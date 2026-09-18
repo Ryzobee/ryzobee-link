@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ryzobee Link"
+  short_description: "通过浏览器命令操作 Link 草稿、UI 模拟器和设备脚本，读取日志辅助联调"
+  default_prompt: "使用 $ryzobee-link 连接我指定的 Link 页面，按本次授权完成操作并报告实际运行结果。"
+policy:
+  allow_implicit_invocation: true
