@@ -23,7 +23,7 @@ A lightweight Lua workbench for **Ryzobee RootMaker**. Edit scripts, interact wi
 - **Web Serial device access:** browse, read, upload, run and delete supported device scripts, with automatic file/capacity updates.
 - **Direct device execution:** sending a script does not require simulation, approval tokens or a cloud service. SHA-256 checks transfer integrity, not permission.
 - **Useful logs:** Device / Simulator / Link source tabs, level filters and pause/clear controls.
-- **Browser AI commands:** an external assistant can share the editor, simulator and device session after the user grants control on the main page.
+- **Browser MCP tools:** an external assistant can share the editor, simulator and device session after the user grants control on the main page.
 - **Offline after initial loading:** production assets, fonts, editor workers and Wasm are bundled and cached locally.
 
 ## Quick start
@@ -46,11 +46,11 @@ Open **http://127.0.0.1:5180**. The development port is fixed; a busy port cause
 
 Double-click a device file to read it into the editor; its `…` menu also supports download, run and delete. Overwrite and deletion require confirmation. Stop a running device script before device file reads/writes if required by the firmware.
 
-## Browser command interface
+## Browser MCP interface
 
-An external assistant with browser tools can use `window.ryzobeeLink` on the user page, or open `agent.html` in the same deployment and browser profile. The companion page provides session selection, an authorization request, a plain JSON input and results. The user grants or ends control on the main page; no permission is persisted. See the [command guide](docs/agent-commands.md).
+Link uses the official MCP TypeScript SDK **1.30.0**, with protocol **2025-11-25** and standard JSON-RPC 2.0 `initialize`, `tools/list` and `tools/call` messages. An external assistant can call `window.ryzobeeLink.request(message)` on the user page, or use `agent.html` in the same deployment and browser profile. Its `window.ryzobeeLinkAgent.connect(sessionId)` initializes MCP; `request(sessionId, message)` sends raw MCP messages. The companion page also provides session selection, authorization and a JSON textarea. See the [MCP guide](docs/agent-commands.md).
 
-Commands share the application's workspace, simulator and serial connection. Upload saves only; running is a separate command and does not require simulation. If a result is unknown, query the original request ID and current state before continuing. Link remains a static app without a model API key or background server.
+The user grants or ends control on the main page; no permission is persisted. Tools share the application's workspace, simulator and serial connection. Upload saves only; running is separate. Every JSON-RPC request needs a new id, including after a timeout: query the original id through `link.request_result` using a new query id, and inspect current state. Never replay a write or run. Link remains a static app: MCP uses a custom browser transport, with no HTTP MCP endpoint, model API key or background server.
 
 Only trusted code should share this origin. Session IDs and client IDs do not authenticate against malicious same-origin scripts; separate GitHub Pages repositories under the same `owner.github.io` hostname share that origin. Deployment paths separate channels, not security boundaries.
 
@@ -123,7 +123,7 @@ Drafts are stored in this browser's IndexedDB, not uploaded to a server. Clearin
 
 Install these independent skills by copying each complete directory into your assistant's skill folder (Codex defaults to `~/.codex/skills/`):
 
-- [Ryzobee Link](skills/ryzobee-link/README.md#english) teaches a browser-capable assistant to operate Link's command interface, including drafts, simulation, device scripts and logs. Use your fork's Pages URL when operating a fork.
+- [Ryzobee Link](skills/ryzobee-link/README.md#english) teaches a browser-capable assistant to operate Link's MCP tools, including drafts, simulation, device scripts and logs. Use your fork's Pages URL when operating a fork.
 - [RyzoBee Lua](skills/ryzobee-lua/README.md#english) guides Lua authoring against the [official firmware documentation](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs) for the target version. It is installed separately; reading the documentation does not require a firmware checkout.
 
 Neither installation adds an AI backend, API key requirement or mandatory upload-validation step to Link.
@@ -140,8 +140,8 @@ For Wasm rebuild prerequisites, firmware pinning and dedicated simulator tests, 
 
 ```text
 src/components/   Editor, simulator, logs and dialogs
-src/commands/     Shared command kernel, session grants, request records and logs
-src/agent/        Independent JSON command page and BroadcastChannel client
+src/commands/     MCP server, shared tool kernel, session grants and request records
+src/agent/        Independent JSON-RPC page and MCP browser transport client
 src/device/       Serial session, protocol, file operations and ANSI logs
 src/simulator/    Worker lifecycle and Wasm messages
 src/workspace/    Drafts, templates, shortcuts and workspace state

@@ -22,7 +22,7 @@
 - **真实 UI 交互**：Lua + LVGL 的 WebAssembly 运行时，点击屏幕即可得到反馈。
 - **串口文件管理**：读取、发送、运行和删除脚本，文件列表与容量自动更新。
 - **直接发送设备**：不要求先通过模拟，不需要审核令牌。
-- **浏览器 AI 命令**：外部助手经用户在主页面授权后，共享编辑器、模拟器和设备会话。
+- **浏览器 MCP 工具**：外部助手经用户在主页面授权后，共享编辑器、模拟器和设备会话。
 - **离线可用**：生产版首次完成资源缓存后可离线打开。
 
 ## 开始
@@ -45,11 +45,11 @@ npm run dev
 
 **发送到设备独立于模拟器**，不需要仿真通过、审核或令牌。SHA-256 只校验文件版本和传输完整性。覆盖与删除须明确确认；文件保护状态来自设备。没有新增自启设置。
 
-## 浏览器命令接口
+## 浏览器 MCP 接口
 
-具备浏览器工具的外部 AI 可直接调用用户页的 `window.ryzobeeLink`，或在同一部署、同一浏览器配置中打开 `agent.html`。独立命令页提供会话选择、授权申请、普通 JSON 输入和结果；用户在主页面允许或结束控制，授权不持久化。使用方法见[命令指南](docs/agent-commands.md)。
+Link 使用官方 MCP TypeScript SDK **1.30.0**，固定协议版本 **2025-11-25**，通过标准 JSON-RPC 2.0 的 `initialize`、`tools/list` 和 `tools/call` 通信。外部 AI 可调用用户页的 `window.ryzobeeLink.request(message)`，或在同一部署、同一浏览器配置中打开 `agent.html`：先调用 `window.ryzobeeLinkAgent.connect(sessionId)` 初始化，再通过 `request(sessionId, message)` 发送原始 MCP 消息。独立页面也提供会话选择、授权申请和 JSON 输入。详见[MCP 指南](docs/agent-commands.md)。
 
-命令与界面共享工作区、模拟器和串口。上传仅保存文件，运行是独立命令，不以仿真通过为前提；结果未知时先查询原 requestId 和当前状态。Link 仍是纯前端，无需模型 API key 或后台服务。
+用户在主页面允许或结束控制，授权不持久化。工具与界面共享工作区、模拟器和串口；上传仅保存文件，运行是独立操作。每次 JSON-RPC 请求使用新 id；超时后用新查询 id 调用 `link.request_result` 查询原 id，并检查实际状态，不重放写入或运行。Link 仍是纯前端：采用自定义浏览器传输，无 HTTP MCP 端点、模型 API key 或后台服务。
 
 整个 origin 都必须可信：会话和客户端 ID 无法抵御同源恶意脚本；同一 `owner.github.io` 域名下的不同 GitHub Pages 仓库仍然同源。部署路径只区分通信频道，不构成安全隔离。
 
@@ -147,8 +147,8 @@ npm run preview
 
 ```text
 src/components/   编辑器、模拟屏幕、日志和确认框
-src/commands/     共享命令调度、会话授权、请求记录和日志
-src/agent/        独立 JSON 命令页与 BroadcastChannel 客户端
+src/commands/     MCP 服务、共享工具调度、会话授权与请求记录
+src/agent/        独立 JSON-RPC 页面与 MCP 浏览器传输客户端
 src/device/       串口会话、协议分帧、文件操作、ANSI 日志
 src/simulator/    Worker 生命周期与 Wasm 通信
 src/workspace/    本地草稿、示例和日志模型
@@ -185,7 +185,7 @@ docs/             架构与实际验收记录
 
 两个技能分开安装：复制各自的**完整目录**到 AI 工具的技能目录，Codex 默认为 `~/.codex/skills/`。
 
-- [Ryzobee Link skill](skills/ryzobee-link/README.md#简体中文)：引导具备浏览器工具的 AI 操作 Link 命令接口，管理草稿、运行仿真、传输设备脚本和查看日志。使用 fork 时换成对应的 Pages 地址。
+- [Ryzobee Link skill](skills/ryzobee-link/README.md#简体中文)：引导具备浏览器工具的 AI 操作 Link MCP 工具，管理草稿、运行仿真、传输设备脚本和查看日志。使用 fork 时换成对应的 Pages 地址。
 - [RyzoBee Lua skill](skills/ryzobee-lua/README.md#简体中文)：引导 AI 读取[官方固件 docs](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs)，按目标版本编写 Lua。它独立安装；仅查文档无需本地固件仓库。
 
 安装技能不会给 Link 添加 AI 后端、模型 API key 要求或强制上传验证步骤。

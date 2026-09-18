@@ -8,6 +8,7 @@ does not relicense the separate Studio/firmware repositories or grant trademark 
 
 - React and React DOM — Meta Platforms, Inc. and affiliates, MIT.
 - Monaco Editor — Microsoft Corporation, MIT.
+- MCP TypeScript SDK v1.30.0 — Anthropic, PBC, MIT; the browser build uses protocol/server/schema modules, not an HTTP server. Zod, Ajv, ajv-formats, fast-deep-equal, json-schema-traverse and require-from-string are MIT; zod-to-json-schema is ISC; fast-uri is BSD-3-Clause. Their license texts are included in `public/licenses/`.
 - VS Code Codicons — Microsoft Corporation, **CC BY 4.0 for icon artwork**, MIT for code. Icons are used through the unmodified `@vscode/codicons` package. Source: <https://github.com/microsoft/vscode-codicons>.
 - Teko, Noto Sans, Noto Sans SC — SIL Open Font License 1.1. The original WOFF2 subsets, unicode ranges, manifest and license files are reused from Ryzobee Studio. Original font sources/checksums: `src/assets/fonts/manifest.json`; notices: `public/fonts/`.
 

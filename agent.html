@@ -4,15 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#121212" />
-    <meta name="description" content="RYZOBEE LINK 同源会话 AI 命令页" />
+    <meta name="description" content="RYZOBEE LINK 同源会话 MCP 命令页" />
     <link rel="icon" type="image/svg+xml" href="./logo.svg" />
-    <title>AI 命令 · RYZOBEE LINK</title>
+    <title>MCP 命令 · RYZOBEE LINK</title>
   </head>
   <body>
     <main class="agent-page">
       <header class="agent-header">
         <img src="./logo.svg" alt="" />
-        <div><h1>RYZOBEE LINK</h1><p>AI 命令</p></div>
+        <div><h1>RYZOBEE LINK</h1><p>MCP 命令</p></div>
       </header>
       <section class="agent-panel" aria-labelledby="session-heading">
         <h2 id="session-heading">目标会话</h2>
@@ -27,21 +27,21 @@
         <p id="session-status" class="agent-status" role="status">正在查找同源 LINK 主页面…</p>
       </section>
       <section class="agent-panel" aria-labelledby="command-heading">
-        <h2 id="command-heading">命令</h2>
+        <h2 id="command-heading">MCP 请求</h2>
         <form id="command-form">
-          <label for="command-json">命令 JSON</label>
+          <label for="command-json">MCP JSON-RPC</label>
           <textarea id="command-json" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="command-hint"></textarea>
-          <p id="command-hint" class="agent-hint">requestId 标识一次操作；新操作请使用新 ID。版本、会话和客户端标识会自动补齐。</p>
+          <p id="command-hint" class="agent-hint">填写完整 JSON-RPC 2.0 请求，每次请求使用新 id。首次提交自动完成 MCP 初始化；会话路由写入 params._meta。通知省略 id。</p>
           <div class="agent-actions">
-            <button id="submit-command" class="primary" type="submit" disabled>提交命令</button>
+            <button id="submit-command" class="primary" type="submit" disabled>发送 MCP 请求</button>
             <button id="query-result" type="button" disabled>查询结果</button>
           </div>
         </form>
       </section>
       <section class="agent-panel" aria-labelledby="result-heading">
-        <h2 id="result-heading">JSON 结果</h2>
-        <pre id="command-result" aria-label="JSON 结果" tabindex="0">{}</pre>
-        <p id="result-status" class="agent-status" role="status">等待提交命令</p>
+        <h2 id="result-heading">MCP 响应</h2>
+        <pre id="command-result" aria-label="MCP 响应 JSON" tabindex="0">{}</pre>
+        <p id="result-status" class="agent-status" role="status">等待发送 MCP 请求</p>
         <p id="result-target" class="agent-hint"></p>
       </section>
     </main>

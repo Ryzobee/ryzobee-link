@@ -1,5 +1,9 @@
-export const PROTOCOL_VERSION = 1 as const;
-export const channelName = () => `ryzobee-link:commands:v1:${new URL(import.meta.env.BASE_URL, location.href).pathname}`;
+import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
+
+export const MCP_VERSION = '2025-11-25' as const;
+export const ROUTE_META = 'com.ryzobee.link/transport';
+export const channelName = () => `ryzobee-link:mcp:v1:${new URL(import.meta.env.BASE_URL, location.href).pathname}`;
+export type McpResponse = Extract<JSONRPCMessage, { result: unknown } | { error: unknown }>;
 
 export interface OwnerSummary {
   version: 1;
@@ -27,31 +31,6 @@ export interface CommandReply {
   data?: unknown;
   error?: { code: string; message: string };
 }
-export interface LinkPageInterface {
-  hello(): OwnerSummary;
-  requestControl(input: { clientId: string; label?: string }): OwnerSummary;
-  execute(request: CommandRequest): Promise<CommandReply>;
-  result(input: { sessionId: string; clientId: string; requestId: string }): CommandReply;
-}
-export type BridgeRequest = {
-  type: 'link-command-request';
-  version: 1;
-  transportId: string;
-  clientId: string;
-  sessionId?: string;
-  action: 'discover' | 'control' | 'execute' | 'result';
-  label?: string;
-  request?: CommandRequest;
-  requestId?: string;
-};
-export type BridgeResponse = {
-  type: 'link-command-response';
-  version: 1;
-  transportId: string;
-  clientId: string;
-  sessionId: string;
-  data: OwnerSummary | CommandReply;
-};
 declare global {
-  interface Window { ryzobeeLink?: LinkPageInterface }
+  interface Window { ryzobeeLink?: { request(message: unknown): Promise<McpResponse | undefined> } }
 }

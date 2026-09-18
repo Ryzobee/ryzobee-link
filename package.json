@@ -3,7 +3,9 @@
   "version": "1.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5180 --strictPort",
     "typecheck": "tsc --noEmit",
@@ -16,10 +18,12 @@
     "test:offline": "node scripts/test-offline.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@vscode/codicons": "0.0.46-24",
     "monaco-editor": "0.56.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",

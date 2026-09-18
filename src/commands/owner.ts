@@ -1,4 +1,4 @@
-import { channelName, type BridgeRequest, type CommandReply, type CommandRequest, type LinkPageInterface, type OwnerSummary } from './protocol';
+import { type CommandReply, type CommandRequest, type OwnerSummary } from './protocol';
 
 export class CommandError extends Error {
   constructor(public readonly code: string, message: string) { super(message); }
@@ -22,7 +22,7 @@ async function digest(value: unknown) {
 }
 
 /** One live page, one human grant, bounded idempotency ledger. No durable authority. */
-export class CommandOwner implements LinkPageInterface {
+export class CommandOwner {
   readonly sessionId = crypto.randomUUID();
   private state: ControlState = { pending: null, grant: null, reason: '' };
   private listeners = new Set<() => void>();
@@ -31,6 +31,7 @@ export class CommandOwner implements LinkPageInterface {
   private records = new Map<string, { fingerprint: string; promise?: Promise<CommandReply>; reply?: CommandReply }>();
   constructor(private backend: CommandBackend) {}
   getSnapshot = () => this.state;
+  getControlEpoch = () => this.generation;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(patch: Partial<ControlState>) { this.state = { ...this.state, ...patch }; for (const listener of this.listeners) listener(); }
   checkIdentity = () => {
@@ -71,7 +72,7 @@ export class CommandOwner implements LinkPageInterface {
     return { version: 1, sessionId: this.sessionId, requestId, ok: false, status: unknown ? 'unknown' : 'rejected',
       error: { code: unknown ? 'RESULT_UNKNOWN' : error instanceof CommandError ? error.code : 'OPERATION_FAILED', message: error instanceof Error ? error.message : String(error) } };
   }
-  execute = async (input: CommandRequest): Promise<CommandReply> => {
+  execute = async (input: CommandRequest, cancelled: () => boolean = () => false): Promise<CommandReply> => {
     let requestId = object(input) && typeof input.requestId === 'string' ? input.requestId.slice(0, 256) : '';
     try {
       if (!object(input) || input.version !== 1 || !identifier(input.requestId) || !identifier(input.clientId) || typeof input.command !== 'string' ||
@@ -97,6 +98,7 @@ export class CommandOwner implements LinkPageInterface {
       const deadline = request.expiresAt ?? Date.now() + 60000;
       const guard = () => {
         this.assert(request.clientId, request.sessionId);
+        if (cancelled()) throw new CommandError('CANCELLED', '请求已取消，未继续执行');
         if (generation !== this.generation) throw new CommandError('CONTROL_REVOKED', '本次控制已撤销，未继续执行');
         if (Date.now() > deadline) throw new CommandError('REQUEST_EXPIRED', '命令已过期，未继续执行');
       };
@@ -126,28 +128,4 @@ export class CommandOwner implements LinkPageInterface {
       throw new CommandError('RESULT_EXPIRED', '结果已移出缓存；请查询实际状态，此请求不会再次执行');
     } catch (error) { return this.failure(requestId, error); }
   };
-  attach() {
-    const api: LinkPageInterface = Object.freeze({ hello: this.hello, requestControl: this.requestControl, execute: this.execute, result: this.result });
-    window.ryzobeeLink = api;
-    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(channelName());
-    let disposed = false;
-    if (channel) channel.onmessage = async ({ data }: MessageEvent<BridgeRequest>) => {
-      if (!object(data) || data.type !== 'link-command-request' || data.version !== 1 || !identifier(data.transportId) || !identifier(data.clientId)) return;
-      if (data.action !== 'discover' && data.sessionId !== this.sessionId) return;
-      let reply: OwnerSummary | CommandReply;
-      try {
-        switch (data.action) {
-          case 'discover': reply = this.hello(); break;
-          case 'control': reply = this.requestControl(data); break;
-          case 'execute':
-            if (!data.request || data.request.clientId !== data.clientId || data.request.sessionId !== data.sessionId) throw new CommandError('INVALID_REQUEST', '请求会话不匹配');
-            reply = await this.execute(data.request); break;
-          case 'result': reply = this.result({ sessionId: this.sessionId, clientId: data.clientId, requestId: data.requestId ?? '' }); break;
-          default: return;
-        }
-      } catch (error) { reply = this.failure(data.requestId ?? '', error); }
-      if (!disposed) channel.postMessage({ type: 'link-command-response', version: 1, transportId: data.transportId, clientId: data.clientId, sessionId: this.sessionId, data: reply });
-    };
-    return () => { disposed = true; channel?.close(); if (window.ryzobeeLink === api) delete window.ryzobeeLink; this.revoke('页面已关闭'); };
-  }
 }

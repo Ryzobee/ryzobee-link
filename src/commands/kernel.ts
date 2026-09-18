@@ -4,7 +4,7 @@ import { SimulatorSession } from '../simulator/session';
 import { CommandError, type CommandBackend, type OperationResult } from './owner';
 import { CommandLogs } from './logs';
 
-const catalog = {
+export const catalog = {
   help: { args: {}, description: 'List supported commands. No eval or arbitrary Console.' },
   'link.status': { args: {}, description: 'Page, device and simulator status.' },
   'workspace.list': { args: {}, description: 'Open documents, IDs and active selection (no source).' },

@@ -4,9 +4,9 @@
 
 ## English
 
-This standalone skill teaches a browser-capable AI assistant to control Ryzobee Link through its command interface: edit browser drafts, run the UI simulator, interact with the simulated display, upload/run device scripts, and inspect logs. It is independent of [`ryzobee-lua`](../ryzobee-lua/README.md), which covers Lua authoring and firmware documentation.
+This standalone skill teaches a browser-capable AI assistant to control Ryzobee Link through MCP JSON-RPC tool calls: edit browser drafts, run the UI simulator, interact with the simulated display, upload/run device scripts, and inspect logs. The custom browser transport is not an HTTP MCP endpoint. It is independent of [`ryzobee-lua`](../ryzobee-lua/README.md), which covers Lua authoring and firmware documentation.
 
-Copy this **entire directory**, preserving `SKILL.md` and `agents/openai.yaml`, to your assistant's skill directory. For Codex, the default location is `~/.codex/skills/ryzobee-link/`. Start a new task or reload skills, then invoke:
+Copy this **entire directory**, including `SKILL.md`, `references/` and `agents/`, to your assistant's skill directory. For Codex, the default location is `~/.codex/skills/ryzobee-link/`. Start a new task or reload skills, then invoke:
 
 > Use $ryzobee-link on https://ryzobee.github.io/ryzobee-link/ to open my Lua file and run its UI simulation.
 
@@ -14,9 +14,9 @@ To test a fork, substitute its Pages URL. Your assistant needs browser automatio
 
 ## 简体中文
 
-独立的 Link 操作 skill：让具备浏览器工具的 AI 通过命令编辑草稿、运行 UI 仿真、点击模拟屏幕、传输/运行设备脚本和查看日志。与负责 Lua 编写及固件接口查证的 [`ryzobee-lua`](../ryzobee-lua/README.md) 分开安装。
+独立的 Link 操作 skill：让具备浏览器工具的 AI 通过标准 MCP JSON-RPC 工具调用编辑草稿、运行 UI 仿真、点击模拟屏幕、传输/运行设备脚本和查看日志。使用自定义浏览器传输，不是 HTTP MCP endpoint。与负责 Lua 编写及固件接口查证的 [`ryzobee-lua`](../ryzobee-lua/README.md) 分开安装。
 
-复制**整个目录**到 AI 工具的 skill 目录，保留 `SKILL.md` 和 `agents/openai.yaml`。Codex 默认位置为 `~/.codex/skills/ryzobee-link/`。开启新任务或重新加载后，例如：
+复制**整个目录**到 AI 工具的 skill 目录，包含 `SKILL.md`、`references/` 和 `agents/`。Codex 默认位置为 `~/.codex/skills/ryzobee-link/`。开启新任务或重新加载后，例如：
 
 > 使用 $ryzobee-link 打开 https://ryzobee.github.io/ryzobee-link/，把我的 Lua 文件放进去并运行 UI 仿真。
 

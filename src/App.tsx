@@ -16,6 +16,7 @@ import { SimulatorSession } from './simulator/session';
 import { CommandKernel } from './commands/kernel';
 import { CommandOwner } from './commands/owner';
 import { CommandLogs } from './commands/logs';
+import { BrowserMcpServer } from './commands/mcp';
 
 type DraftContent = { name: string; source: string };
 type Confirm = { kind: 'upload'; draft: DraftContent; previousSha: string; exists: boolean }
@@ -36,6 +37,7 @@ export default function App() {
     externalEdit: id => setEditorRevisions(current => ({ ...current, [id]: (current[id] ?? 0) + 1 })),
   }));
   const [owner] = useState(() => new CommandOwner(kernel));
+  const [mcp] = useState(() => new BrowserMcpServer(owner));
   const control = useSyncExternalStore(owner.subscribe, owner.getSnapshot);
   const busy = useSyncExternalStore(kernel.subscribe, kernel.getSnapshot);
   const snapshot = useSyncExternalStore(device.subscribe, device.getSnapshot);
@@ -127,10 +129,10 @@ export default function App() {
 
   useEffect(() => () => { void device.disconnect(); }, [device]);
   useEffect(() => {
-    const detach = owner.attach();
+    const detach = mcp.attach();
     const unsubscribe = device.subscribe(owner.checkIdentity);
     return () => { unsubscribe(); detach(); simulator.dispose(); };
-  }, [owner, device, simulator]);
+  }, [owner, device, simulator, mcp]);
   useEffect(() => { if (control.reason) addLog('link', 'info', control.reason); }, [control.reason, addLog]);
   useEffect(() => { if (snapshot.connection === 'ready' || !control.grant) setConnectionRequested(false); }, [snapshot.connection, control.grant]);
   useEffect(() => { if (storageError) setNotice({ text: storageError, error: true }); }, [storageError]);
