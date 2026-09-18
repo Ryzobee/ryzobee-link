@@ -65,6 +65,7 @@ export class DeviceClient {
 
   constructor(private readonly timeoutMs = 6000) {}
   getSnapshot = () => this.state;
+  getConnectionEpoch = () => this.generation;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
 
   private publish(patch: Partial<DeviceSnapshot>) {
@@ -183,7 +184,7 @@ export class DeviceClient {
     return this.state.info;
   }
 
-  private request(payload: Record<string, unknown>, mutation = false, timeout = this.timeoutMs): Promise<Reply> {
+  private request(payload: Record<string, unknown>, mutation = false, timeout = this.timeoutMs, guard?: () => void): Promise<Reply> {
     const writer = this.writer;
     if (!writer) return Promise.reject(new Error('请先连接串口'));
     const id = `${this.prefix}-${++this.requestId}`;
@@ -202,13 +203,14 @@ export class DeviceClient {
       this.pending.set(id, pending);
       this.writes = this.writes.catch(() => {}).then(async () => {
         if (generation !== this.generation || !this.pending.has(id)) return;
+        guard?.();
         // A stream rejection can happen after a partial write; from here it is unknown.
         pending.sent = true;
         await writer.write(data);
-      }).catch(() => {
+      }).catch(error => {
         if (!this.pending.delete(id)) return;
         clearTimeout(timer);
-        reject(mutation ? this.unknown(action) : new Error('串口写入失败'));
+        reject(mutation && pending.sent ? this.unknown(action) : error instanceof Error ? error : new Error('串口写入失败'));
       });
     });
   }
@@ -250,7 +252,12 @@ export class DeviceClient {
       }
     } else if (value.boot_id !== this.state.info?.boot_id) {
       // Unknown boot events cannot replace identity or revive old jobs.
-      if (typeof value.boot_id === 'string' && this.state.info) this.message('收到不同启动标识的事件，请重新识别设备。', 'system');
+      if (typeof value.boot_id === 'string' && this.state.info) {
+        this.rejectPending();
+        this.output.clear(); this.ansi.clear();
+        this.publish({ connection: 'serial-open', info: null, jobs: [], files: [], storage: null });
+        this.message('收到不同启动标识的事件，请重新识别设备。', 'system');
+      }
     } else if (value.event === 'job' && isJob(value.job)) {
       this.applyJob(value.job);
       this.message(`${value.job.name} · ${value.job.state}${value.job.error ? `\n${value.job.error}` : ''}`, value.job.state === 'failed' ? 'error' : 'job', value.job.job_id);
@@ -330,10 +337,10 @@ export class DeviceClient {
     return info;
   }
 
-  private async scripts(action: string, fields: Record<string, unknown> = {}, mutation = false) {
+  private async scripts(action: string, fields: Record<string, unknown> = {}, mutation = false, guard?: () => void) {
     const info = this.requireReady();
     const generation = this.generation;
-    const reply = await this.request({ ...fields, op: 'scripts', schema: STORE_SCHEMA, boot_id: info.boot_id, action }, mutation);
+    const reply = await this.request({ ...fields, op: 'scripts', schema: STORE_SCHEMA, boot_id: info.boot_id, action }, mutation, this.timeoutMs, guard);
     if (generation !== this.generation || this.state.info?.boot_id !== info.boot_id || reply.schema !== STORE_SCHEMA || reply.boot_id !== info.boot_id) {
       if (mutation) throw this.unknown(`${action} ${fields.name ?? ''}`.trim());
       throw new Error('文件存储响应与当前设备不一致，请重新识别设备');
@@ -392,7 +399,7 @@ export class DeviceClient {
       modified_at: typeof reply.modified_at === 'string' ? reply.modified_at : null };
   }
 
-  async upload(name: string, source: string, previousSha256 = ''): Promise<string> {
+  async upload(name: string, source: string, previousSha256 = '', guard?: () => void): Promise<string> {
     const info = this.requireReady(); this.checkName(name, true); this.checkPrevious(previousSha256, true);
     const bytes = encoder.encode(source).length;
     const limit = Math.min(info.source_limit_bytes ?? 16384, 16384);
@@ -400,7 +407,7 @@ export class DeviceClient {
     const generation = this.generation;
     const sha256 = await sourceHash(source);
     if (generation !== this.generation || this.state.info?.boot_id !== info.boot_id) throw new Error('设备连接已改变，未发送文件');
-    const reply = await this.scripts('put', { name, source, sha256, previous_sha256: previousSha256 }, true);
+    const reply = await this.scripts('put', { name, source, sha256, previous_sha256: previousSha256 }, true, guard);
     if (reply.store_commit !== 'committed' || reply.sha256 !== sha256 || reply.bytes !== bytes) throw this.unknown(`上传 ${name}`);
     this.message(`已发送 ${name} · ${bytes} B`, 'system');
     return sha256;
@@ -422,19 +429,19 @@ export class DeviceClient {
     if (!(allowAbsent && hash === '') && !shaPattern.test(hash)) throw new Error('请先读取文件版本，再确认覆盖或删除');
   }
 
-  async command(command: string) {
+  async command(command: string, guard?: () => void) {
     this.requireReady();
     if (!command.trim() || /[\r\n\0]/.test(command) || encoder.encode(command).length > 512) throw new Error('Console 命令必须为 1..512 字节的单行文本');
     const readOnly = /^(help|board\s+info|lua\s+--jobs|lua\s+--job\s+[A-Za-z0-9_.:-]+)\s*$/.test(command.trim());
     this.message(command, 'command');
-    const reply = await this.request({ op: 'console', command }, !readOnly);
+    const reply = await this.request({ op: 'console', command }, !readOnly, this.timeoutMs, guard);
     if (typeof reply.output === 'string') this.message(reply.output, 'system');
     return reply;
   }
-  async run(name: string) { this.checkName(name); return this.command(`lua --run-async --path ${name}`); }
-  async stop(jobId: string) {
+  async run(name: string, guard?: () => void) { this.checkName(name); return this.command(`lua --run-async --path ${name}`, guard); }
+  async stop(jobId: string, guard?: () => void) {
     if (!identifierPattern.test(jobId)) throw new Error('任务编号无效');
-    return this.command(`lua --stop ${jobId}`);
+    return this.command(`lua --stop ${jobId}`, guard);
   }
   async jobs() { return this.command('lua --jobs'); }
 }
