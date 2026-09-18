@@ -27,7 +27,16 @@ AI 页保留路由与 RPC ID 匹配、15 秒本地超时、按原编号查询、
 
 已检查用户页授权弹窗、顶栏结束控制和仿真实际运行截图；没有向常规界面添加 AI 页入口或额外状态行。AI 页在 1440、360 和 320 px 检查无横向溢出。
 
-fork Pages 的线上 skill 实操在标签部署后进行，结果记录到对应 GitHub Release / PR，不能以此发布前文档声称线上已通过。组织页面只有合并后单独发布才会更新。
+2026-09-19 在真实 Chrome 中按 `ryzobee-link` skill 完成 fork Pages 实操，目标为 `https://geekheart.github.io/ryzobee-link/` 的 V1.1.0（代码 `e7f1f3f`）。[标签部署工作流](https://github.com/geekheart/ryzobee-link/actions/runs/35383531093)成功。所有操作经 AI 页表单发送标准 MCP JSON-RPC，没有模拟网络、串口或 Wasm：
+
+- 打开用户页与 `agent.html`，发现正确会话；模拟本次 UI 验收的授权点击，`link.control_status` 返回匹配的客户端和 `granted`。
+- `tools/list` 获取 24 个工具；读取随包 UI 示例，克隆为独立测试草稿，返回 `persisted:true`，用户页同步出现标签。
+- 按文档 hash 启动，先返回 `accepted/loading`，随后查询到 `running`、首帧和相同源码 hash。
+- MCP 指针按下/释放后，真实画面从 `COUNT 0` 变为 `COUNT 1`；增量日志仅一条 `count\t1\n`；截图返回标准 PNG image 内容块，尺寸 240×240。
+- 使用“查询结果”生成新 RPC ID，恢复原截图结果。停止后用户页回到 `SIMULATOR`；清理仅本次测试草稿，保留原示例。
+- 用户页结束控制后，`workspace.list` 明确返回 `NEEDS_APPROVAL`。视觉检查无额外状态行或主界面 AI 页入口。
+
+日志末尾换行仍按既有 `logRows` 规则显示一个带来源的空行；这不是重复事件，也不是脚本执行两次。未在本次扩展中混入日志排版改动。组织页面仍须合并 PR 后单独发布。
 
 ## 明确限制
 
