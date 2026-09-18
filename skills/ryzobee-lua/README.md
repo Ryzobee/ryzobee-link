@@ -4,11 +4,11 @@
 
 ## 简体中文
 
-这是供 AI 编程助手使用的技能包，不是 Link 的浏览器插件或 Lua 库。它帮助生成、修改和审查 RootMaker Lua 脚本，覆盖 APPS 元数据、240×240 UI、真实原生接口、资源限制及有界 Host 验证。安装技能不会自动连接、写入或烧录设备，也不会给 Link 增加 AI 后端。
+这是供 AI 编程助手使用的技能包，不是 Link 的浏览器插件或 Lua 库。它引导 AI 先读取 [Ryzobee 固件仓库的 docs](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs)，再按目标版本生成、修改和审查 RootMaker Lua 脚本。接口、脚本头部、示例及验证入口随固件文档维护，不在本包中复制一份。安装不会自动连接、写入或烧录设备，也不会给 Link 增加 AI 后端。
 
 ### 安装
 
-从本仓库复制**整个 `skills/ryzobee-lua` 文件夹**，不要只复制 `SKILL.md`。先审阅内容；目标已存在时先备份或比较，避免覆盖自己的修改。
+从本仓库复制**整个 `skills/ryzobee-lua` 文件夹**，不要只复制 `SKILL.md`。先审阅内容；目标已存在时先备份或比较，避免覆盖自己的修改。升级旧版时，备份后替换整包，不要仅覆盖同名文件而留下旧接口表、示例和校验器。
 
 Codex 当前支持用户级 `~/.agents/skills/` 和项目级 `.agents/skills/`；选一个位置安装，避免重复发现同名技能。以下命令从 Link 仓库根执行，仅在目标不存在时复制：
 
@@ -35,55 +35,48 @@ Copy-Item -Recurse ./skills/ryzobee-lua $skillDest
 
 只对某项目使用时，将完整文件夹复制到该项目的 `.agents/skills/ryzobee-lua`。已使用 `~/.codex/skills` 的旧配置请按客户端实际加载位置管理，不要同时安装两份。安装后在技能选择器检查 `ryzobee-lua`，未出现则重启客户端。[Codex 官方技能说明](https://learn.chatgpt.com/docs/build-skills)
 
-其他 Agent 可加载 `SKILL.md` 并按链接读取 `references/`，同时保留 `scripts/`、`assets/` 相对路径；仅把入口文件粘贴到聊天会丢失接口和验证资料。
+其他 Agent 可加载 `SKILL.md` 并按链接读取 `references/`；同时需要可用的网页/文档读取工具，或用户提供的对应版本文档。仅把入口文件粘贴到聊天会丢失文档导航。
 
 ### 使用
 
-在 Codex 中明确调用，并给出目标固件根：
+在 Codex 中明确调用；有目标固件版本、commit 或本地工作树时一并提供，未指定时 AI 将查阅官方默认分支当前文档并说明兼容性尚未与设备核对：
 
 ```text
-$ryzobee-lua 请为 RootMaker 编写一个点击加一的计数器。
-固件路径：/absolute/path/to/firmware/rootmaker。
-保留完整 APPS 摘要，使用托管 UI；执行有界 Host 检查，不连接设备。
+$ryzobee-lua 请为 RootMaker 编写可记住选择的主题切换界面。
+先读取官方固件仓库当前 docs，并记录使用的版本。
+完成 Lua 文件；不要连接或写入设备。
 ```
 
-生成 `.lua` 后在 Link 中「打开」，纯 UI 可点击模拟器运行；需要实机时由用户连接后「发送」。模拟器不模拟外设，技能快照与 Link 的 Wasm 版本也可能不同。**Host 验证是开发辅助，不是 Link 上传令牌或发送门槛。**
+生成 `.lua` 后在 Link 中「打开」，纯 UI 可点击模拟器运行；需要实机时由用户连接后「发送」。Link 模拟器仅覆盖其运行时支持的 UI，可能落后于最新固件接口；模拟器不支持某能力不等于设备固件不支持。**验证是开发辅助，不是 Link 上传令牌或发送门槛。**
 
-### 可选本地检查
+### 文档与验证环境
 
-阅读技能参考不需要 Python。运行检查器需要 Python 3.9+、macOS/Linux 原生 C 编译器及匹配的固件工作树（包括 `host/`、相关 `tests/`、`components/` 和已准备的 `managed_components/georgik__lua`）。Link 仓库不包含这些固件依赖；不要用系统 Lua 替代冻结 Lua。Windows 原生检查器未验证，可使用自行配置的 WSL/Linux 环境，但不承诺其已验收。
+阅读公开文档不要求本地固件源码、编译器或 API key。AI 可使用宿主已有的浏览器、GitHub API 或文件读取工具；离线时提供匹配版本的本地文档或相关正文。没有文档且无法联网时，AI 会请求资料，不猜测接口。
 
-在技能目录运行，替换示例绝对路径：
-
-```sh
-python3 scripts/check_script.py --firmware-root /absolute/path/to/firmware/rootmaker assets/ui_counter.lua
-python3 scripts/check_ui_runtime.py --firmware-root /absolute/path/to/firmware/rootmaker --duration-ms 1000 assets/ui_counter.lua
-```
-
-第一个只检查元数据和语法；第二个执行有界 UI Host，不验证真实 LCD、LVGL 像素或外设。更多回放与硬件虚拟测试见 [接口验证](references/interface-validation.md)。缺少固件依赖时报告未验证，不自动下载或烧录。
+语法、Host/模拟器等验证工具及其依赖从同版本固件文档查找；本技能不再附带固定 ABI 的校验器或维护者测试套件。是否需要固件源码、SDK 或其它环境取决于选用的工具。缺少环境时交付会明确标记未验证，不自动下载 SDK 或访问设备；语法、已执行行为、像素和实机证据分开说明。
 
 ### 内容与版本边界
 
 - `SKILL.md`：入口和工作流程；`agents/`：Codex 展示配置。
-- `references/`：元数据、运行时、UI、硬件与工具接口。
-- `assets/`：计数器示例；`scripts/`：Host 校验器。
+- `references/firmware-docs.md`：上游文档导航、版本选择与查证边界。
+- `README.md` 与 `LICENSE`：安装使用说明与 MIT 协议。
 
-参考基线为 2026-09-17 的 V0.10.1 工作树，含当时未提交内容，不保证任何同版本固件都兼容。以用户选定源码为准；见 [来源与验证](references/sources-and-validation.md)。用户技能包不包含维护者回归测试；`scripts/` 仅用于针对用户脚本的校验。更新时比较整包，不只替换入口。技能按随包 [MIT](LICENSE) 协议发布。
+同一次任务使用同一版本的文档、示例和必要源码。导航链接只是发现入口，目录改名或新增接口时应重新查找，不能把导航表当作固件能力上限。未指定设备版本时不承诺最新接口兼容现有设备；见 [固件文档导航](references/firmware-docs.md)。技能按随包 [MIT](LICENSE) 协议发布。
 
 ## English
 
-This is an AI coding skill, not a browser extension or Lua module. It covers RootMaker script metadata, UI/native APIs and bounded Host validation. It neither adds an AI backend to Link nor grants permission to connect or flash hardware.
+This is an AI coding skill, not a browser extension or Lua module. It guides the assistant to the [official firmware docs](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs) before writing or reviewing RootMaker Lua. APIs, metadata, examples and validation tools are maintained upstream, not copied into this package. It neither adds an AI backend to Link nor grants permission to connect or flash hardware.
 
 ### Install and invoke
 
-Copy the **entire** `skills/ryzobee-lua` directory to either `~/.agents/skills/ryzobee-lua` (user scope) or your project's `.agents/skills/ryzobee-lua`. The shell and PowerShell examples above refuse to overwrite an existing installation. Review or back up existing copies first; avoid duplicate installations. Check the skill selector after installation and restart the client if needed. See the [official Codex guide](https://learn.chatgpt.com/docs/build-skills).
+Copy the **entire** `skills/ryzobee-lua` directory to either `~/.agents/skills/ryzobee-lua` (user scope) or your project's `.agents/skills/ryzobee-lua`. The shell and PowerShell examples above refuse to overwrite an existing installation. Review or back up existing copies first; avoid duplicate installations. When upgrading, replace the complete package after backup instead of overlaying files and leaving old API references, templates or validators behind. Check the skill selector after installation and restart the client if needed. See the [official Codex guide](https://learn.chatgpt.com/docs/build-skills).
 
-Invoke `$ryzobee-lua` and provide the absolute path to your selected `firmware/rootmaker` checkout. For example: “Create a touch counter with managed UI, complete APPS metadata and bounded Host checks; do not access hardware.” Other agents need the entrypoint **and linked resources**, not just pasted instructions.
+Invoke `$ryzobee-lua` and provide a target firmware version, commit or local checkout if known. For example: “Create a theme picker that remembers my choice; consult current official firmware docs, record the version used, and do not access hardware.” Without a target version, the assistant reads the current default branch and notes that device compatibility is unconfirmed. Other agents need the entrypoint **and linked resources**, plus a way to read upstream docs or matching documentation supplied by the user.
 
 ### Validate and use with Link
 
-Reading the skill needs no compiler. Optional validators require Python 3.9+, a native macOS/Linux C compiler and the selected firmware's Host sources, tests, components and frozen Lua dependency. Those are not included in Link. Native Windows validators are unverified.
+Reading public docs requires neither a local firmware checkout nor a compiler or API key. An available browser, GitHub API or file reader is sufficient; offline use requires matching local docs or supplied text. If neither source is available, the assistant requests documentation instead of inventing interfaces.
 
-From the skill directory, run the two commands above with your actual firmware path. The first parses metadata/syntax without running Lua; the second executes a bounded UI Host. Neither proves real hardware or LVGL pixel correctness. Open the resulting script in Link, simulate supported UI if useful, then explicitly connect/send when desired. Validation is **not** an upload gate.
+Validation tools and dependencies are discovered in the same firmware version's docs. This package no longer bundles ABI-specific validators or maintainer test suites. Missing tools are reported as unverified; SDK installation and hardware access are not automatic. Syntax checks, executed behavior, pixels and physical-device results are separate evidence. Open the resulting script in Link, simulate supported UI if useful, then explicitly connect/send when desired. Validation is **not** an upload gate.
 
-The references describe a dated V0.10.1 working tree, including uncommitted changes. They are not a universal compatibility guarantee or a promise that Link's pinned Wasm has identical APIs. Maintainer regression suites are excluded from this package; `scripts/` provides targeted validation of user scripts. Follow the [source notes](references/sources-and-validation.md) and [validation guide](references/interface-validation.md). The skill includes its [MIT License](LICENSE).
+Use one firmware version for docs, examples and any required source inspection. The [documentation map](references/firmware-docs.md) is a discovery aid, not an API ceiling or compatibility guarantee. Link's pinned Wasm may lag behind current firmware; lack of simulator support does not prove lack of device support. The package contains the workflow, documentation map, agent configuration, this guide and its [MIT License](LICENSE).

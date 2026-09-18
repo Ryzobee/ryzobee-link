@@ -112,7 +112,7 @@ Drafts are stored in this browser's IndexedDB, not uploaded to a server. Clearin
 
 ### AI coding skill
 
-The standalone [RyzoBee Lua skill](skills/ryzobee-lua/README.md#english) helps an AI assistant author and validate compatible scripts. Its guide covers installation, invocation, firmware prerequisites and the workflow for opening generated files in Link. Copy the complete folder, not only `SKILL.md`. Installing it does not add an AI backend or an upload-validation requirement to Link.
+The standalone [RyzoBee Lua skill](skills/ryzobee-lua/README.md#english) guides an AI assistant to the [official firmware documentation](https://github.com/Ryzobee/ryzobee-firmware/tree/main/docs) before writing scripts. APIs, examples and validation tools are looked up for the target firmware version rather than copied into the skill. No local firmware checkout is required just to read the documentation. Copy the complete skill folder; installation adds neither an AI backend nor an upload-validation requirement to Link.
 
 ```sh
 npm run typecheck
